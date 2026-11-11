@@ -497,6 +497,56 @@ async def test_ip_spoofing_rejected_from_untrusted_client():
     req_trusted = Request(trusted_scope)
     assert get_trusted_client_ip(req_trusted) == "203.0.113.99"
 
+    # Multi-hop proxy chain: untrusted-attacker, legitimate-client, trusted-internal-proxy
+    chain_scope = {
+        "type": "http",
+        "client": ("127.0.0.1", 42100),
+        "headers": [(b"x-forwarded-for", b"198.51.100.1, 203.0.113.50, 127.0.0.1")],
+    }
+    req_chain = Request(chain_scope)
+    # Rightmost untrusted IP must be 203.0.113.50
+    assert get_trusted_client_ip(req_chain) == "203.0.113.50"
+
+
+@pytest.mark.asyncio
+async def test_distinct_client_ips_receive_distinct_rate_limits():
+    """Two different clients accessing through trusted proxy get distinct rate-limit keys and don't share limits."""
+    from app.core.security.rate_limiter import InMemoryRateLimiterBackend, get_trusted_client_ip
+    from starlette.requests import Request
+
+    limiter = InMemoryRateLimiterBackend()
+
+    req_client_a = Request({
+        "type": "http",
+        "client": ("127.0.0.1", 50001),
+        "headers": [(b"x-forwarded-for", b"203.0.113.10")],
+    })
+    req_client_b = Request({
+        "type": "http",
+        "client": ("127.0.0.1", 50002),
+        "headers": [(b"x-forwarded-for", b"203.0.113.20")],
+    })
+
+    ip_a = get_trusted_client_ip(req_client_a)
+    ip_b = get_trusted_client_ip(req_client_b)
+    assert ip_a == "203.0.113.10"
+    assert ip_b == "203.0.113.20"
+    assert ip_a != ip_b
+
+    # Consume all allowed requests for client A (limit: 5)
+    for _ in range(5):
+        allowed, _ = limiter.is_allowed(f"login:{ip_a}", times=5, seconds=60)
+        assert allowed is True
+
+    # 6th request for client A is rejected
+    allowed_a_6, _ = limiter.is_allowed(f"login:{ip_a}", times=5, seconds=60)
+    assert allowed_a_6 is False
+
+    # Client B is completely unblocked and allowed
+    allowed_b, _ = limiter.is_allowed(f"login:{ip_b}", times=5, seconds=60)
+    assert allowed_b is True
+
+
 
 @pytest.mark.asyncio
 async def test_refresh_token_reuse_detection_revokes_family():

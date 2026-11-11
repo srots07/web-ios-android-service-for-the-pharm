@@ -15,7 +15,7 @@ export async function GET(
   if (authHeader) headers.set("authorization", authHeader);
   const cookieHeader = request.headers.get("cookie");
   if (cookieHeader) headers.set("cookie", cookieHeader);
-  const realIp = request.ip || "127.0.0.1";
+  const realIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "127.0.0.1";
   headers.set("x-forwarded-for", realIp);
 
   try {
@@ -61,7 +61,7 @@ export async function POST(
   if (originHeader) headers.set("origin", originHeader);
   const refererHeader = request.headers.get("referer");
   if (refererHeader) headers.set("referer", refererHeader);
-  const realIp = request.ip || "127.0.0.1";
+  const realIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "127.0.0.1";
   headers.set("x-forwarded-for", realIp);
 
   try {
@@ -110,7 +110,7 @@ export async function PATCH(
   if (originHeader) headers.set("origin", originHeader);
   const refererHeader = request.headers.get("referer");
   if (refererHeader) headers.set("referer", refererHeader);
-  const realIp = request.ip || "127.0.0.1";
+  const realIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "127.0.0.1";
   headers.set("x-forwarded-for", realIp);
 
   try {

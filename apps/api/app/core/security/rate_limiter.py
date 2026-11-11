@@ -9,22 +9,28 @@ from app.config.settings import settings
 
 
 def get_trusted_client_ip(request: Request) -> str:
-    """Extract client IP safely by only trusting upstream proxy headers from configured trusted proxies."""
+    """Extract client IP safely by parsing X-Forwarded-For right-to-left, identifying the rightmost untrusted entry."""
     direct_ip = request.client.host if request.client else "127.0.0.1"
     trusted_proxies = (
-        settings.TRUSTED_PROXIES
-        if isinstance(settings.TRUSTED_PROXIES, list)
-        else ["127.0.0.1", "::1", "localhost"]
+        set(settings.TRUSTED_PROXIES)
+        if isinstance(settings.TRUSTED_PROXIES, (list, set))
+        else {p.strip() for p in settings.TRUSTED_PROXIES.split(",") if p.strip()}
     )
 
-    if direct_ip in trusted_proxies:
-        forwarded = request.headers.get("x-forwarded-for")
-        if forwarded:
-            # First IP in X-Forwarded-For chain is the original client
-            candidate = forwarded.split(",")[0].strip()
-            if candidate:
-                return candidate
-    return direct_ip
+    if direct_ip not in trusted_proxies:
+        return direct_ip
+
+    forwarded = request.headers.get("x-forwarded-for")
+    if not forwarded:
+        return direct_ip
+
+    # Walk right-to-left: the rightmost untrusted IP is the real client IP
+    ips = [ip.strip() for ip in forwarded.split(",") if ip.strip()]
+    for ip in reversed(ips):
+        if ip not in trusted_proxies:
+            return ip
+
+    return ips[0] if ips else direct_ip
 
 
 class BaseRateLimiterBackend:
