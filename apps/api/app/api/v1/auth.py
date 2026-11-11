@@ -3,7 +3,7 @@ from datetime import UTC, timedelta
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
-from sqlalchemy import select, update
+from sqlalchemy import or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config.settings import settings
@@ -462,10 +462,10 @@ async def get_customer_enquiries(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Retrieve enquiries belonging to the authenticated customer (tenant isolation)."""
+    """Retrieve enquiries belonging to the authenticated customer (tenant isolation by customer_id)."""
     stmt = (
         select(Inquiry)
-        .where(Inquiry.email == current_user.email)
+        .where(or_(Inquiry.customer_id == current_user.id, (Inquiry.customer_id.is_(None) & (Inquiry.email == current_user.email))))
         .order_by(Inquiry.created_at.desc())
     )
     res = await db.execute(stmt)
@@ -490,10 +490,10 @@ async def get_customer_orders(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Retrieve orders belonging to the authenticated customer (tenant isolation)."""
+    """Retrieve orders belonging to the authenticated customer (tenant isolation by customer_id)."""
     stmt = (
         select(Order)
-        .where(Order.customer_email == current_user.email)
+        .where(or_(Order.customer_id == current_user.id, (Order.customer_id.is_(None) & (Order.customer_email == current_user.email))))
         .order_by(Order.created_at.desc())
     )
     res = await db.execute(stmt)
@@ -518,10 +518,10 @@ async def get_customer_quotations(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Retrieve quotations addressed to the authenticated customer (tenant isolation)."""
+    """Retrieve quotations addressed to the authenticated customer (tenant isolation by customer_id)."""
     stmt = (
         select(Quotation)
-        .where(Quotation.recipient_email == current_user.email)
+        .where(or_(Quotation.customer_id == current_user.id, (Quotation.customer_id.is_(None) & (Quotation.recipient_email == current_user.email))))
         .order_by(Quotation.created_at.desc())
     )
     res = await db.execute(stmt)
@@ -549,15 +549,15 @@ async def get_customer_order_detail(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Retrieve single order detail with strict object-level tenant isolation."""
+    """Retrieve single order detail with strict customer_id object-level tenant isolation."""
     stmt = select(Order).where(Order.id == order_id)
     res = await db.execute(stmt)
     order = res.scalar_one_or_none()
     if not order:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found.")
 
-    # Object-level authorization check: return 404 to avoid leaking object existence
-    if order.customer_email != current_user.email and current_user.role not in ("admin", "staff"):
+    is_owner = (order.customer_id == current_user.id) or (order.customer_id is None and order.customer_email == current_user.email)
+    if not is_owner and current_user.role not in ("admin", "staff"):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Order not found.",
@@ -591,15 +591,15 @@ async def get_customer_quotation_detail(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Retrieve single quotation detail with strict object-level tenant isolation."""
+    """Retrieve single quotation detail with strict customer_id object-level tenant isolation."""
     stmt = select(Quotation).where(Quotation.id == quotation_id)
     res = await db.execute(stmt)
     quote = res.scalar_one_or_none()
     if not quote:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quotation not found.")
 
-    # Object-level authorization check: return 404 to avoid leaking object existence
-    if quote.recipient_email != current_user.email and current_user.role not in ("admin", "staff"):
+    is_owner = (quote.customer_id == current_user.id) or (quote.customer_id is None and quote.recipient_email == current_user.email)
+    if not is_owner and current_user.role not in ("admin", "staff"):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Quotation not found.",
@@ -635,15 +635,15 @@ async def get_customer_enquiry_detail(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Retrieve single enquiry detail with strict object-level tenant isolation."""
+    """Retrieve single enquiry detail with strict customer_id object-level tenant isolation."""
     stmt = select(Inquiry).where(Inquiry.id == enquiry_id)
     res = await db.execute(stmt)
     inq = res.scalar_one_or_none()
     if not inq:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Enquiry not found.")
 
-    # Object-level authorization check: return 404 to avoid leaking object existence
-    if inq.email != current_user.email and current_user.role not in ("admin", "staff"):
+    is_owner = (inq.customer_id == current_user.id) or (inq.customer_id is None and inq.email == current_user.email)
+    if not is_owner and current_user.role not in ("admin", "staff"):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Enquiry not found.",

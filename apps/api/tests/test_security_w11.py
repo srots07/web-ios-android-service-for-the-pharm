@@ -7,7 +7,7 @@ from httpx import ASGITransport, AsyncClient
 
 from app.config.settings import settings
 from app.core.security.tokens import create_access_token
-from app.database.session import init_db
+from app.database.session import async_session_maker, init_db
 from app.main import app
 
 
@@ -379,6 +379,31 @@ async def test_object_level_authorization_customer_orders():
             headers={"Authorization": f"Bearer {token_a}"},
         )
         assert res_enq.status_code == 404
+
+    # Direct tenant isolation test: Customer B accessing an object owned by Customer A (customer_id mismatch) -> 404
+    async with async_session_maker() as session:
+        from app.database.models import Order
+        isolated_order = Order(
+            order_number=f"PRM-ORD-ISOLATED-{uuid.uuid4().hex[:8]}",
+            customer_id="cust-id-user-a",
+            customer_name="Customer User A",
+            customer_email="customera@example.com",
+            country="Germany",
+            status="Submitted",
+        )
+        session.add(isolated_order)
+        await session.commit()
+        await session.refresh(isolated_order)
+        isolated_id = isolated_order.id
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        # Customer A token (which is registered as customer@primebyactivist.com whose id != cust-id-user-a)
+        res_forbidden_cross = await ac.get(
+            f"/api/v1/auth/customer/orders/{isolated_id}",
+            headers={"Authorization": f"Bearer {token_a}"},
+        )
+        # MUST return 404 Not Found to prevent IDOR and enumeration
+        assert res_forbidden_cross.status_code == 404
 
 
 @pytest.mark.asyncio

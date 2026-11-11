@@ -87,6 +87,13 @@ async def init_db() -> None:
     """Initialize database tables and seed required admin, roles, permissions, and catalog records."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # Migrate existing tables to ensure customer_id column is present
+        from sqlalchemy import text
+        for tbl in ["orders", "quotations", "inquiries"]:
+            try:
+                await conn.execute(text(f"ALTER TABLE {tbl} ADD COLUMN customer_id VARCHAR(36)"))
+            except Exception:
+                pass
 
     async with async_session_maker() as session:
         # 1. Seed Permissions

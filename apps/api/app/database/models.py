@@ -177,6 +177,7 @@ class Order(Base):
     id = Column(String(36), primary_key=True, default=generate_uuid)
     order_number = Column(String(50), unique=True, index=True, nullable=False)
     inquiry_id = Column(String(36), nullable=True)
+    customer_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     customer_name = Column(String(255), nullable=False)
     customer_email = Column(String(255), nullable=False, index=True)
     organization = Column(String(255), nullable=True)
@@ -227,6 +228,7 @@ class Quotation(Base):
     id = Column(String(36), primary_key=True, default=generate_uuid)
     quotation_number = Column(String(50), unique=True, index=True, nullable=False)
     order_id = Column(String(36), nullable=True)
+    customer_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     recipient_name = Column(String(255), nullable=False)
     recipient_email = Column(String(255), nullable=False)
     organization = Column(String(255), nullable=True)
@@ -262,6 +264,7 @@ class Inquiry(Base):
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
     reference_id = Column(String(50), unique=True, index=True, nullable=False)
+    customer_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     full_name = Column(String(255), nullable=False)
     email = Column(String(255), nullable=False, index=True)
     phone = Column(String(50), nullable=True)
