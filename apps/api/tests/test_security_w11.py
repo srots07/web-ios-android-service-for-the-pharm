@@ -381,4 +381,74 @@ async def test_object_level_authorization_customer_orders():
         assert res_enq.status_code == 404
 
 
+@pytest.mark.asyncio
+async def test_account_lockout_enforcement_and_generic_messaging():
+    """Consecutive failed login attempts trigger lockout with identical generic responses for registered and unknown emails."""
+    test_email = "lockout-test@example.com"
+    unknown_email = "nonexistent-user-999@example.com"
+    headers = {"X-Test-Lockout": "enforce"}
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        # First 4 attempts fail with 401 and generic message
+        for i in range(4):
+            res = await ac.post(
+                "/api/v1/auth/login",
+                json={"email": test_email, "password": "WrongPassword1!"},
+                headers=headers,
+            )
+            assert res.status_code == 401
+            assert res.json()["detail"] == "Invalid email address or password."
+
+        # 5th attempt triggers lockout
+        res_locked = await ac.post(
+            "/api/v1/auth/login",
+            json={"email": test_email, "password": "WrongPassword1!"},
+            headers=headers,
+        )
+        assert res_locked.status_code == 423
+        assert "Too many failed login attempts" in res_locked.json()["detail"]
+
+        # Unknown email also locks out identically without user enumeration
+        for i in range(5):
+            res_unknown = await ac.post(
+                "/api/v1/auth/login",
+                json={"email": unknown_email, "password": "WrongPassword1!"},
+                headers=headers,
+            )
+        assert res_unknown.status_code == 423
+        assert "Too many failed login attempts" in res_unknown.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_auth_cookie_attributes_and_clearing():
+    """Auth refresh cookies must have HttpOnly, SameSite, and correct path; logout must clear them."""
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        # Login
+        res = await ac.post(
+            "/api/v1/auth/login",
+            json={"email": "admin@primebyactivist.com", "password": "DevAdminPassword@2026!"},
+        )
+        assert res.status_code == 200
+
+        # Check Set-Cookie headers
+        set_cookie_headers = res.headers.get_list("set-cookie")
+        refresh_cookie_header = next((h for h in set_cookie_headers if "prime_refresh_token" in h), None)
+        assert refresh_cookie_header is not None
+        assert "httponly" in refresh_cookie_header.lower()
+        assert "samesite=lax" in refresh_cookie_header.lower()
+        assert "path=/" in refresh_cookie_header.lower()
+
+        # Logout clears cookies
+        res_logout = await ac.post(
+            "/api/v1/auth/logout",
+            cookies={"prime_refresh_token": res.cookies.get("prime_refresh_token", "")},
+        )
+        assert res_logout.status_code == 200
+        logout_cookie_headers = res_logout.headers.get_list("set-cookie")
+        refresh_cleared = next((h for h in logout_cookie_headers if "prime_refresh_token" in h), None)
+        assert refresh_cleared is not None
+        assert "max-age=0" in refresh_cleared.lower() or "expires=" in refresh_cleared.lower()
+
+
+
 
