@@ -158,3 +158,48 @@ async def test_sql_injection_resilience_in_search():
             data = res.json()
             assert "items" in data
             assert isinstance(data["items"], list)
+
+
+def test_production_fails_closed_without_secrets():
+    """Production settings must fail closed when API_SECRET_KEY is missing or weak."""
+    from app.config.settings import Settings
+
+    # Missing secret in production
+    with pytest.raises(ValueError, match="API_SECRET_KEY must be explicitly provided in production"):
+        Settings(ENVIRONMENT="production", API_SECRET_KEY="")
+
+    # Insecure default secret in production
+    with pytest.raises(ValueError, match="Known insecure or default JWT secret key cannot be used in production"):
+        Settings(
+            ENVIRONMENT="production",
+            API_SECRET_KEY="prime-activist-secure-jwt-key-2026-production-min32chars",
+            DATABASE_URL="postgresql+asyncpg://user:pass@localhost:5432/db",
+        )
+
+    # SQLite forbidden in production
+    with pytest.raises(ValueError, match="SQLite is forbidden in production"):
+        Settings(
+            ENVIRONMENT="production",
+            API_SECRET_KEY="a" * 32,
+            DATABASE_URL="sqlite+aiosqlite:///./prod.db",
+        )
+
+    # Default admin password rejected for bootstrap in production
+    with pytest.raises(ValueError, match="Default or empty administrator password cannot be used"):
+        Settings(
+            ENVIRONMENT="production",
+            API_SECRET_KEY="b" * 32,
+            DATABASE_URL="postgresql+asyncpg://user:pass@localhost:5432/db",
+            ALLOW_ADMIN_BOOTSTRAP=True,
+            DEFAULT_ADMIN_PASSWORD="PrimeAdmin@2026!",
+        )
+
+    # Valid production settings pass
+    valid_prod = Settings(
+        ENVIRONMENT="production",
+        API_SECRET_KEY="c" * 32,
+        DATABASE_URL="postgresql+asyncpg://user:pass@localhost:5432/db",
+        ALLOW_ADMIN_BOOTSTRAP=False,
+    )
+    assert valid_prod.AUTH_COOKIE_SECURE is True
+

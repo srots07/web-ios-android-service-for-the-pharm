@@ -178,7 +178,7 @@ async function runVerification() {
 
     console.log("Connected to Chrome via CDP.");
 
-    // Inject session token into sessionStorage on origin and login via proxy
+    // Perform authenticated login via the Next.js API proxy (which receives the HttpOnly cookie)
     await cdp.navigate(`${BASE_URL}/login`);
     await new Promise(r => setTimeout(r, 600));
 
@@ -187,10 +187,9 @@ async function runVerification() {
         const res = await fetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: 'admin@primebyactivist.com', password: 'PrimeAdmin@2026!' })
+          body: JSON.stringify({ email: '${ADMIN_EMAIL}', password: '${ADMIN_PASSWORD}' })
         });
         const data = await res.json();
-        sessionStorage.setItem("prime_access_token", data.access_token);
         return { status: res.status, user: data.user?.role };
       })()
     `);

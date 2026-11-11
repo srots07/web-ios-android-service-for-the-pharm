@@ -10,23 +10,16 @@ let inMemoryAccessToken: string | null = null;
 let isRefreshing = false;
 let refreshSubscribers: Array<(token: string | null) => void> = [];
 
+/**
+ * Access tokens are stored strictly in-memory (never in localStorage or sessionStorage)
+ * to prevent credential theft via Cross-Site Scripting (XSS).
+ */
 export function getAccessToken(): string | null {
-  if (inMemoryAccessToken) return inMemoryAccessToken;
-  if (typeof window !== "undefined") {
-    return sessionStorage.getItem("prime_access_token");
-  }
-  return null;
+  return inMemoryAccessToken;
 }
 
 export function setAccessToken(token: string | null): void {
   inMemoryAccessToken = token;
-  if (typeof window !== "undefined") {
-    if (token) {
-      sessionStorage.setItem("prime_access_token", token);
-    } else {
-      sessionStorage.removeItem("prime_access_token");
-    }
-  }
 }
 
 function onRefreshed(token: string | null) {
@@ -34,7 +27,7 @@ function onRefreshed(token: string | null) {
   refreshSubscribers = [];
 }
 
-async function refreshAccessToken(): Promise<string | null> {
+export async function refreshAccessToken(): Promise<string | null> {
   try {
     const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.REFRESH}`, {
       method: "POST",

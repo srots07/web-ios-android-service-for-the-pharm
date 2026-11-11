@@ -510,8 +510,18 @@ export default function AdminOrdersPage() {
 
       {/* Order Detail & Workflow Drawer / Modal */}
       {selectedOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="relative w-full max-w-2xl rounded-2xl border border-border bg-card p-6 shadow-xl space-y-6">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setSelectedOrder(null);
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="order-detail-title"
+            className="relative w-full max-w-2xl rounded-2xl border border-border bg-card p-6 shadow-xl space-y-6"
+          >
             <div className="flex items-center justify-between border-b border-border pb-4">
               <div>
                 <div className="flex items-center gap-2">
@@ -526,7 +536,7 @@ export default function AdminOrdersPage() {
                     {selectedOrder.status}
                   </span>
                 </div>
-                <h3 className="font-bold text-foreground text-lg mt-1">
+                <h3 id="order-detail-title" className="font-bold text-foreground text-lg mt-1">
                   {selectedOrder.customer_name} — {selectedOrder.organization || "B2B Client"}
                 </h3>
                 <p className="text-xs text-muted-foreground">
@@ -668,11 +678,21 @@ export default function AdminOrdersPage() {
 
       {/* Create Order Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="relative w-full max-w-2xl rounded-2xl border border-border bg-card p-6 shadow-xl space-y-5 my-8">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setShowCreateModal(false);
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-order-title"
+            className="relative w-full max-w-2xl rounded-2xl border border-border bg-card p-6 shadow-xl space-y-5 my-8"
+          >
             <div className="flex items-center justify-between border-b border-border pb-3">
               <div>
-                <h3 className="font-bold text-foreground text-lg">Initialize Procurement Order</h3>
+                <h3 id="create-order-title" className="font-bold text-foreground text-lg">Initialize Procurement Order</h3>
                 <p className="text-xs text-muted-foreground">Register an institutional order with line items into the database</p>
               </div>
               <button

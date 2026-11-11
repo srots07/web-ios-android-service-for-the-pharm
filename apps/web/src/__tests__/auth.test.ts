@@ -19,7 +19,6 @@ describe("Authentication Store (useAuthStore)", () => {
       isLoading: false,
       error: null,
     });
-    sessionStorage.clear();
   });
 
   it("initializes with unauthenticated state when no session exists", async () => {

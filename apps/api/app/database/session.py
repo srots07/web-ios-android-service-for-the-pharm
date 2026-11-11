@@ -165,41 +165,45 @@ async def init_db() -> None:
             role.permissions = target_perms
             role_map[str(role.slug)] = role
 
-        # 3. Seed default administrative account if missing
-        stmt = select(User).options(selectinload(User.roles)).where(User.email == settings.DEFAULT_ADMIN_EMAIL.lower())
-        result = await session.execute(stmt)
-        admin_user = result.scalar_one_or_none()
+        # 3. Seed default administrative account if missing (only when bootstrap is explicitly permitted)
+        if settings.ALLOW_ADMIN_BOOTSTRAP and settings.DEFAULT_ADMIN_PASSWORD:
+            stmt = select(User).options(selectinload(User.roles)).where(User.email == settings.DEFAULT_ADMIN_EMAIL.lower())
+            result = await session.execute(stmt)
+            admin_user = result.scalar_one_or_none()
 
-        if not admin_user:
-            admin_user = User(
-                email=settings.DEFAULT_ADMIN_EMAIL.lower(),
-                full_name=settings.DEFAULT_ADMIN_NAME,
-                password_hash=hash_password(settings.DEFAULT_ADMIN_PASSWORD),
-                role="admin",
-                account_type="Platform Administrator",
-                is_active=True,
-                is_verified=True,
-                created_at=utc_now(),
-            )
-            session.add(admin_user)
-            await session.flush()
-            stmt = select(User).options(selectinload(User.roles)).where(User.id == admin_user.id)
-            res = await session.execute(stmt)
-            admin_user = res.scalar_one()
+            if not admin_user:
+                admin_user = User(
+                    email=settings.DEFAULT_ADMIN_EMAIL.lower(),
+                    full_name=settings.DEFAULT_ADMIN_NAME,
+                    password_hash=hash_password(settings.DEFAULT_ADMIN_PASSWORD),
+                    role="admin",
+                    account_type="Platform Administrator",
+                    is_active=True,
+                    is_verified=True,
+                    created_at=utc_now(),
+                )
+                session.add(admin_user)
+                await session.flush()
+                stmt = select(User).options(selectinload(User.roles)).where(User.id == admin_user.id)
+                res = await session.execute(stmt)
+                admin_user = res.scalar_one()
 
-            audit_log = AuditEvent(
-                user_id=admin_user.id,
-                event_type="SYSTEM_BOOTSTRAP",
-                description=f"Initial platform administrator account ({settings.DEFAULT_ADMIN_EMAIL}) initialized.",
-                created_at=utc_now(),
-            )
-            session.add(audit_log)
+                audit_log = AuditEvent(
+                    user_id=admin_user.id,
+                    event_type="SYSTEM_BOOTSTRAP",
+                    description=f"Initial platform administrator account ({settings.DEFAULT_ADMIN_EMAIL}) initialized.",
+                    created_at=utc_now(),
+                )
+                session.add(audit_log)
+            else:
+                # Synchronize password hash to match current active development/bootstrap password
+                admin_user.password_hash = hash_password(settings.DEFAULT_ADMIN_PASSWORD)
 
-        # Attach super_admin role to admin user and ensure active admin status
-        admin_user.role = "admin"
-        admin_user.is_active = True
-        if "super_admin" in role_map and role_map["super_admin"] not in admin_user.roles:
-            admin_user.roles.append(role_map["super_admin"])
+            # Attach super_admin role to admin user and ensure active admin status
+            admin_user.role = "admin"
+            admin_user.is_active = True
+            if "super_admin" in role_map and role_map["super_admin"] not in admin_user.roles:
+                admin_user.roles.append(role_map["super_admin"])
 
         # 4. Seed verified formulations if missing
         seed_products = [

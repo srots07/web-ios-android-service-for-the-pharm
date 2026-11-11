@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -35,17 +35,75 @@ export default function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const asideRef = useRef<HTMLElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
-  // Close mobile drawer on Escape key press
+  // Focus management & keyboard accessibility for mobile drawer
   useEffect(() => {
-    if (!mobileOpen) return;
+    if (!mobileOpen) {
+      // Restore focus to trigger element when drawer closes
+      if (previousFocusRef.current && typeof previousFocusRef.current.focus === "function") {
+        previousFocusRef.current.focus();
+        previousFocusRef.current = null;
+      }
+      return;
+    }
+
+    // Save active element prior to opening drawer
+    previousFocusRef.current = document.activeElement as HTMLElement;
+
+    // Focus close button or first interactive element inside drawer
+    const timer = setTimeout(() => {
+      if (closeButtonRef.current) {
+        closeButtonRef.current.focus();
+      } else if (asideRef.current) {
+        const firstFocusable = asideRef.current.querySelector<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        firstFocusable?.focus();
+      }
+    }, 50);
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        e.preventDefault();
         onMobileClose?.();
+        return;
+      }
+
+      // Focus trap cycling inside drawer
+      if (e.key === "Tab" && asideRef.current) {
+        const focusables = Array.from(
+          asideRef.current.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          )
+        ).filter((el) => el.offsetParent !== null || el === closeButtonRef.current);
+
+        if (focusables.length === 0) return;
+
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
       }
     };
+
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
   }, [mobileOpen, onMobileClose]);
 
   return (
@@ -60,10 +118,12 @@ export default function Sidebar({
       )}
 
       <aside
+        ref={asideRef}
         className={`app-sidebar ${collapsed ? "collapsed" : "expanded"} ${
           mobileOpen ? "mobile-open" : ""
         } ${className}`}
-        role="navigation"
+        role={mobileOpen ? "dialog" : "navigation"}
+        aria-modal={mobileOpen ? "true" : undefined}
         aria-label="Application Sidebar"
       >
         {/* Sidebar Header & Brand */}
@@ -103,6 +163,7 @@ export default function Sidebar({
           {/* Mobile Close Button */}
           {onMobileClose && (
             <button
+              ref={closeButtonRef}
               type="button"
               className="sidebar-mobile-close sm:hidden"
               onClick={onMobileClose}

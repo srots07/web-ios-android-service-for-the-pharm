@@ -543,11 +543,21 @@ export default function AdminQuotationsPage() {
 
       {/* Create Commercial Quotation Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="relative w-full max-w-3xl rounded-2xl border border-border bg-card p-6 shadow-xl space-y-6">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setShowCreateModal(false);
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-quotation-title"
+            className="relative w-full max-w-3xl rounded-2xl border border-border bg-card p-6 shadow-xl space-y-6"
+          >
             <div className="flex items-center justify-between border-b border-border pb-4">
               <div>
-                <h3 className="font-bold text-foreground text-lg">Generate Formal Commercial Quotation</h3>
+                <h3 id="create-quotation-title" className="font-bold text-foreground text-lg">Generate Formal Commercial Quotation</h3>
                 <p className="text-xs text-muted-foreground">
                   Calculate line item batch pricing, currency parameters, and Incoterm commercial terms.
                 </p>
@@ -769,8 +779,18 @@ export default function AdminQuotationsPage() {
 
       {/* View Proforma Modal */}
       {selectedQuotation && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="relative w-full max-w-2xl rounded-2xl border border-border bg-card p-6 shadow-xl space-y-6">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setSelectedQuotation(null);
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="view-quotation-title"
+            className="relative w-full max-w-2xl rounded-2xl border border-border bg-card p-6 shadow-xl space-y-6"
+          >
             <div className="flex items-center justify-between border-b border-border pb-4">
               <div>
                 <div className="flex items-center gap-2">
@@ -787,7 +807,7 @@ export default function AdminQuotationsPage() {
                     {selectedQuotation.status}
                   </span>
                 </div>
-                <h3 className="font-bold text-foreground text-lg mt-1">
+                <h3 id="view-quotation-title" className="font-bold text-foreground text-lg mt-1">
                   Proforma: {selectedQuotation.recipient_name}
                 </h3>
                 <p className="text-xs text-muted-foreground">

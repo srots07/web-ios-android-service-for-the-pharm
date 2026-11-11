@@ -6,7 +6,7 @@
 import { create } from "zustand";
 import { authApi } from "@/lib/api/auth";
 import { AuthUser, LoginRequest } from "@/lib/api/types";
-import { setAccessToken } from "@/lib/api/client";
+import { setAccessToken, getAccessToken, refreshAccessToken } from "@/lib/api/client";
 
 interface AuthState {
   user: AuthUser | null;
@@ -31,9 +31,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   init: async () => {
     set({ isLoading: true, error: null });
     try {
+      if (!getAccessToken()) {
+        await refreshAccessToken();
+      }
       const user = await authApi.me();
       set({ user, isAuthenticated: true, isLoading: false });
     } catch {
+      setAccessToken(null);
       set({ user: null, isAuthenticated: false, isLoading: false });
     }
   },

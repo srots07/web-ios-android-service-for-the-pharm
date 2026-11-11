@@ -163,8 +163,8 @@ async def login(
         key=settings.AUTH_COOKIE_NAME,
         value=raw_refresh,
         httponly=True,
-        secure=settings.ENVIRONMENT == "production",
-        samesite="lax",
+        secure=settings.AUTH_COOKIE_SECURE or settings.ENVIRONMENT == "production",
+        samesite=settings.AUTH_COOKIE_SAMESITE,
         max_age=session_days * 86400,
         path="/",
     )
@@ -261,8 +261,8 @@ async def refresh_session(
         key=settings.AUTH_COOKIE_NAME,
         value=new_raw_refresh,
         httponly=True,
-        secure=settings.ENVIRONMENT == "production",
-        samesite="lax",
+        secure=settings.AUTH_COOKIE_SECURE or settings.ENVIRONMENT == "production",
+        samesite=settings.AUTH_COOKIE_SAMESITE,
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
         path="/",
     )
