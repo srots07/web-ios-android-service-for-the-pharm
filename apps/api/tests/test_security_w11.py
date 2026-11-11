@@ -307,8 +307,9 @@ async def test_mass_assignment_protection_profile_update():
 
 @pytest.mark.asyncio
 async def test_csrf_rejection_on_refresh_from_unauthorized_origin():
-    """Cookie refresh endpoint must reject cross-origin requests from untrusted origins."""
+    """Cookie refresh endpoint must reject cross-origin requests from untrusted origins, and allow valid referer."""
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        # 1. Untrusted origin -> rejected
         res = await ac.post(
             "/api/v1/auth/refresh",
             headers={"Origin": "https://attacker-controlled-site.com"},
@@ -316,6 +317,24 @@ async def test_csrf_rejection_on_refresh_from_unauthorized_origin():
         )
         assert res.status_code == 403
         assert "CSRF policy" in res.json()["detail"]
+
+        # 2. Missing Origin and Referer with CSRF enforcement -> rejected
+        res_missing = await ac.post(
+            "/api/v1/auth/refresh",
+            headers={"X-Test-CSRF": "enforce"},
+            cookies={"prime_refresh_token": "mock-refresh-token"},
+        )
+        assert res_missing.status_code == 403
+        assert "Missing Origin and Referer" in res_missing.json()["detail"]
+
+        # 3. Valid Referer fallback from allowed origin -> passes CSRF check (fails later on invalid mock token 401)
+        res_referer = await ac.post(
+            "/api/v1/auth/refresh",
+            headers={"Referer": "http://localhost:3000/dashboard", "X-Test-CSRF": "enforce"},
+            cookies={"prime_refresh_token": "mock-refresh-token"},
+        )
+        assert res_referer.status_code == 401
+        assert "Invalid or revoked refresh session" in res_referer.json()["detail"]
 
 
 @pytest.mark.asyncio

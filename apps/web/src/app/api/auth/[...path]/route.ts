@@ -55,6 +55,12 @@ export async function POST(
   if (authHeader) headers.set("authorization", authHeader);
   const cookieHeader = request.headers.get("cookie");
   if (cookieHeader) headers.set("cookie", cookieHeader);
+  const originHeader = request.headers.get("origin");
+  if (originHeader) headers.set("origin", originHeader);
+  const refererHeader = request.headers.get("referer");
+  if (refererHeader) headers.set("referer", refererHeader);
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  if (forwardedFor) headers.set("x-forwarded-for", forwardedFor);
 
   try {
     const body = await request.json().catch(() => ({}));
@@ -98,6 +104,12 @@ export async function PATCH(
   if (authHeader) headers.set("authorization", authHeader);
   const cookieHeader = request.headers.get("cookie");
   if (cookieHeader) headers.set("cookie", cookieHeader);
+  const originHeader = request.headers.get("origin");
+  if (originHeader) headers.set("origin", originHeader);
+  const refererHeader = request.headers.get("referer");
+  if (refererHeader) headers.set("referer", refererHeader);
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  if (forwardedFor) headers.set("x-forwarded-for", forwardedFor);
 
   try {
     const body = await request.json().catch(() => ({}));

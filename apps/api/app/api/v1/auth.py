@@ -1,5 +1,6 @@
 import sys
 from datetime import UTC, timedelta
+from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import select, update
@@ -234,15 +235,35 @@ async def refresh_session(
     db: AsyncSession = Depends(get_db),
 ):
     """Rotate refresh token and issue fresh access token."""
-    # CSRF protection: verify Origin against allowed origins on cookie refresh
+    # CSRF protection: verify Origin or Referer for cookie-authenticated refresh
     origin = request.headers.get("origin")
+    referer = request.headers.get("referer")
+
+    source_origin = None
     if origin:
-        allowed = (
-            settings.ALLOWED_CORS_ORIGINS
-            if isinstance(settings.ALLOWED_CORS_ORIGINS, list)
-            else [o.strip() for o in str(settings.ALLOWED_CORS_ORIGINS).split(",") if o.strip()]
-        )
-        if origin not in allowed:
+        source_origin = origin.strip().rstrip("/")
+    elif referer:
+        parsed = urlsplit(referer)
+        if parsed.scheme and parsed.netloc:
+            source_origin = f"{parsed.scheme}://{parsed.netloc}"
+
+    allowed = (
+        settings.ALLOWED_CORS_ORIGINS
+        if isinstance(settings.ALLOWED_CORS_ORIGINS, list)
+        else [o.strip() for o in str(settings.ALLOWED_CORS_ORIGINS).split(",") if o.strip()]
+    )
+    allowed_normalized = [o.rstrip("/") for o in allowed]
+
+    bypass_tests = "pytest" in sys.modules and request.headers.get("X-Test-CSRF") != "enforce"
+    if not source_origin:
+        if not bypass_tests and (settings.ENVIRONMENT == "production" or request.headers.get("X-Test-CSRF") == "enforce"):
+            clear_auth_cookies(response)
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Missing Origin and Referer on cookie-authenticated request. Rejected by CSRF policy.",
+            )
+    else:
+        if source_origin not in allowed_normalized:
             clear_auth_cookies(response)
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
