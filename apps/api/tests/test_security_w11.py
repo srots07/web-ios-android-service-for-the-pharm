@@ -587,6 +587,40 @@ async def test_logout_and_logout_all_invalidate_access_tokens():
         assert "revoked" in res_me_all_revoked.json()["detail"].lower()
 
 
+@pytest.mark.asyncio
+async def test_upload_filename_traversal_rejected_and_stored_as_uuid():
+    """Uploads with '..' must be rejected, and stored files must follow <uuid>.<ext> pattern."""
+    admin_token = await get_admin_token()
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    pdf_bytes = b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF"
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        # Path traversal filename with '..' rejected
+        res_traversal = await ac.post(
+            "/api/v1/admin/documents/upload",
+            files={"file": ("../../etc/passwd.pdf", io.BytesIO(pdf_bytes), "application/pdf")},
+            data={"category": "Dossiers"},
+            headers=headers,
+        )
+        assert res_traversal.status_code == 400
+        assert "strictly prohibited" in res_traversal.json()["detail"]
+
+        # Valid upload stored as pure <uuid>.<ext>
+        res_valid = await ac.post(
+            "/api/v1/admin/documents/upload",
+            files={"file": ("UserOriginalDocument.pdf", io.BytesIO(pdf_bytes), "application/pdf")},
+            data={"category": "Dossiers"},
+            headers=headers,
+        )
+        assert res_valid.status_code == 201
+        stored_name = res_valid.json()["stored_filename"]
+        assert stored_name.endswith(".pdf")
+        assert "UserOriginalDocument" not in stored_name
+        uuid_part = stored_name[:-4]
+        assert len(uuid_part) == 32
+
+
+
 
 
 

@@ -97,7 +97,13 @@ async def upload_document(
     if not file.filename:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="File name must not be empty.")
 
-    # 1. Clean original filename & extension
+    # 1. Reject path traversal attempts and sanitize metadata filename
+    if ".." in file.filename:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Path traversal sequences '..' are strictly prohibited in filename.",
+        )
+
     raw_name = os.path.basename(file.filename)
     original_name = re.sub(r'[^\w.\- ]', '_', raw_name).strip()[:128]
     if not original_name:
@@ -149,9 +155,8 @@ async def upload_document(
             detail=f"File extension '{extension}' does not match detected binary type '{detected_type}'.",
         )
 
-    # 5. Generate unique, safe storage filename preventing path traversal
-    clean_base = re.sub(r'[^a-zA-Z0-9_\-]', '', os.path.splitext(original_name)[0])[:32]
-    stored_filename = f"{uuid.uuid4().hex[:12]}_{clean_base}{extension}"
+    # 5. Generate purely random storage filename (<uuid>.<ext>), never user-derived
+    stored_filename = f"{uuid.uuid4().hex}{extension}"
     target_path = STORAGE_DIR / stored_filename
 
     # Ensure resolved path is strictly inside STORAGE_DIR
