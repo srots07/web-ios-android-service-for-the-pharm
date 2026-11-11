@@ -450,5 +450,29 @@ async def test_auth_cookie_attributes_and_clearing():
         assert "max-age=0" in refresh_cleared.lower() or "expires=" in refresh_cleared.lower()
 
 
+@pytest.mark.asyncio
+async def test_ip_spoofing_rejected_from_untrusted_client():
+    """Spoofed X-Forwarded-For headers from untrusted socket addresses must not alter rate-limit or lockout keys."""
+    from app.core.security.rate_limiter import get_trusted_client_ip
+    from starlette.requests import Request
+
+    untrusted_scope = {
+        "type": "http",
+        "client": ("198.51.100.5", 42100),
+        "headers": [(b"x-forwarded-for", b"203.0.113.99")],
+    }
+    req_untrusted = Request(untrusted_scope)
+    assert get_trusted_client_ip(req_untrusted) == "198.51.100.5"
+
+    trusted_scope = {
+        "type": "http",
+        "client": ("127.0.0.1", 42100),
+        "headers": [(b"x-forwarded-for", b"203.0.113.99")],
+    }
+    req_trusted = Request(trusted_scope)
+    assert get_trusted_client_ip(req_trusted) == "203.0.113.99"
+
+
+
 
 

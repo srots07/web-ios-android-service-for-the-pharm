@@ -15,6 +15,8 @@ export async function GET(
   if (authHeader) headers.set("authorization", authHeader);
   const cookieHeader = request.headers.get("cookie");
   if (cookieHeader) headers.set("cookie", cookieHeader);
+  const realIp = request.ip || "127.0.0.1";
+  headers.set("x-forwarded-for", realIp);
 
   try {
     const res = await fetch(targetUrl, {
@@ -59,8 +61,8 @@ export async function POST(
   if (originHeader) headers.set("origin", originHeader);
   const refererHeader = request.headers.get("referer");
   if (refererHeader) headers.set("referer", refererHeader);
-  const forwardedFor = request.headers.get("x-forwarded-for");
-  if (forwardedFor) headers.set("x-forwarded-for", forwardedFor);
+  const realIp = request.ip || "127.0.0.1";
+  headers.set("x-forwarded-for", realIp);
 
   try {
     const body = await request.json().catch(() => ({}));
@@ -108,8 +110,8 @@ export async function PATCH(
   if (originHeader) headers.set("origin", originHeader);
   const refererHeader = request.headers.get("referer");
   if (refererHeader) headers.set("referer", refererHeader);
-  const forwardedFor = request.headers.get("x-forwarded-for");
-  if (forwardedFor) headers.set("x-forwarded-for", forwardedFor);
+  const realIp = request.ip || "127.0.0.1";
+  headers.set("x-forwarded-for", realIp);
 
   try {
     const body = await request.json().catch(() => ({}));

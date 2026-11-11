@@ -36,3 +36,4 @@ for fpath in files:
             perm = "get_current_user"
             
         print(f"  {method} {path} -> {fn_name}() | Role/Perm: {perm}")
+
