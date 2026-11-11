@@ -47,6 +47,12 @@ class Settings(BaseSettings):
         "http://localhost:3000,http://127.0.0.1:3000,http://localhost:8000",
     )
 
+    # Trusted reverse proxy IPs permitted to forward X-Forwarded-For headers
+    TRUSTED_PROXIES: str | list[str] = os.getenv(
+        "TRUSTED_PROXIES",
+        "127.0.0.1,::1,localhost",
+    )
+
     # Seed / Bootstrap Administrator (Explicitly separated between dev/test and production)
     ALLOW_ADMIN_BOOTSTRAP: bool = False
     DEFAULT_ADMIN_EMAIL: str = "admin@primebyactivist.com"
@@ -113,6 +119,10 @@ class Settings(BaseSettings):
 
             if isinstance(self.ALLOWED_CORS_ORIGINS, str):
                 self.ALLOWED_CORS_ORIGINS = [orig.strip() for orig in self.ALLOWED_CORS_ORIGINS.split(",") if orig.strip()]
+
+        # Normalize TRUSTED_PROXIES across all environments
+        if isinstance(self.TRUSTED_PROXIES, str):
+            self.TRUSTED_PROXIES = [p.strip() for p in self.TRUSTED_PROXIES.split(",") if p.strip()]
 
         return self
 

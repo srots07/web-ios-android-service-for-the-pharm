@@ -9,8 +9,12 @@ from app.config.settings import settings
 from app.core.dependencies.auth import get_current_user
 from app.core.security.cookies import clear_auth_cookies, set_auth_cookie
 from app.core.security.lockout import account_lockout
-from app.core.security.passwords import hash_password, verify_password
-from app.core.security.rate_limiter import rate_limit
+from app.core.security.passwords import (
+    DUMMY_PASSWORD_HASH,
+    hash_password,
+    verify_password,
+)
+from app.core.security.rate_limiter import get_trusted_client_ip, rate_limit
 from app.core.security.tokens import (
     create_access_token,
     generate_secure_token,
@@ -105,14 +109,15 @@ async def login(
 ):
     """Authenticate user, return short-lived access token, and establish rotating session."""
     email_clean = payload.email.lower().strip()
+    client_ip = get_trusted_client_ip(request)
 
-    # Enforce brute-force account lockout check
+    # Enforce brute-force account lockout check (keyed on email + IP)
     bypass = "pytest" in sys.modules and request.headers.get("X-Test-Lockout") != "enforce"
-    is_locked, remaining_seconds = account_lockout.is_locked(email_clean, bypass_in_tests=bypass)
+    is_locked, remaining_seconds = account_lockout.is_locked(email_clean, client_ip, bypass_in_tests=bypass)
     if is_locked:
         raise HTTPException(
             status_code=status.HTTP_423_LOCKED,
-            detail=f"Account temporarily locked due to excessive failed attempts. Please try again in {remaining_seconds} seconds.",
+            detail=f"Too many failed login attempts. Please try again in {remaining_seconds} seconds.",
             headers={"Retry-After": str(remaining_seconds)},
         )
 
@@ -120,16 +125,24 @@ async def login(
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
 
-    if not user or not verify_password(payload.password, user.password_hash):
-        # Record failed attempt and trigger lockout if limit reached
-        is_now_locked, lock_seconds = account_lockout.record_failure(email_clean, bypass_in_tests=bypass)
+    # Timing-safe password verification: if user does not exist, check dummy hash
+    password_valid = False
+    if user:
+        password_valid = verify_password(payload.password, user.password_hash)
+    else:
+        # Dummy verification to prevent timing-based user enumeration
+        verify_password(payload.password, DUMMY_PASSWORD_HASH)
+
+    if not user or not password_valid:
+        # Record failed attempt and trigger lockout if limit reached (tracks unknown emails too)
+        is_now_locked, lock_seconds = account_lockout.record_failure(email_clean, client_ip, bypass_in_tests=bypass)
 
         # Audit failed login
         audit_event = AuditEvent(
             user_id=user.id if user else None,
             event_type="LOGIN_FAILED",
             description=f"Failed login attempt for: {email_clean}",
-            ip_address=request.client.host if request.client else None,
+            ip_address=client_ip,
             created_at=utc_now(),
         )
         db.add(audit_event)
@@ -138,7 +151,7 @@ async def login(
         if is_now_locked:
             raise HTTPException(
                 status_code=status.HTTP_423_LOCKED,
-                detail=f"Account temporarily locked due to excessive failed attempts. Please try again in {lock_seconds} seconds.",
+                detail=f"Too many failed login attempts. Please try again in {lock_seconds} seconds.",
                 headers={"Retry-After": str(lock_seconds)},
             )
 
@@ -154,8 +167,8 @@ async def login(
             detail="Account is inactive or suspended. Please contact platform support.",
         )
 
-    # Successful login: reset any failure counters
-    account_lockout.record_success(email_clean)
+    # Successful login: reset failure counters for this email + IP
+    account_lockout.record_success(email_clean, client_ip)
 
     # Create JWT access token
     access_token = create_access_token({
