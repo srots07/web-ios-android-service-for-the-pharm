@@ -1,8 +1,11 @@
+import logging
 import sys
 import time
 from collections import defaultdict
 
 from app.config.settings import settings
+
+logger = logging.getLogger(__name__)
 
 MAX_FAILED_ATTEMPTS = 5
 LOCKOUT_DURATION_SECONDS = 15 * 60  # 15 minutes
@@ -87,10 +90,13 @@ class RedisLockoutBackend:
             in_memory_lockout.record_success(key)
 
     def reset(self) -> None:
+        """Reset lockout records by key prefix without destructive database flushing."""
         try:
-            self.client.flushdb()
-        except Exception:
-            pass
+            keys = self.client.keys("lockout:*")
+            if keys:
+                self.client.delete(*keys)
+        except Exception as exc:
+            logger.warning("Failed to reset lockout keys in Redis: %s", exc)
 
 
 in_memory_lockout = InMemoryLockoutBackend()

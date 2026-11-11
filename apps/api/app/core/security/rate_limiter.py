@@ -1,3 +1,4 @@
+import logging
 import sys
 import time
 from collections import defaultdict
@@ -6,6 +7,8 @@ from typing import Callable
 from fastapi import HTTPException, Request, status
 
 from app.config.settings import settings
+
+logger = logging.getLogger(__name__)
 
 
 def get_trusted_client_ip(request: Request) -> str:
@@ -98,10 +101,13 @@ class RedisRateLimiterBackend(BaseRateLimiterBackend):
             return in_memory_backend.is_allowed(key, times, seconds)
 
     def reset(self) -> None:
+        """Reset rate limiter records by key prefix without destructive database flushing."""
         try:
-            self.client.flushdb()
-        except Exception:
-            pass
+            keys = self.client.keys("ratelimit:*")
+            if keys:
+                self.client.delete(*keys)
+        except Exception as exc:
+            logger.warning("Failed to reset rate limiter keys in Redis: %s", exc)
 
 
 in_memory_backend = InMemoryRateLimiterBackend()
