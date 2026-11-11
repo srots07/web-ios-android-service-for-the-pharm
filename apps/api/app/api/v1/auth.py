@@ -535,11 +535,11 @@ async def get_customer_order_detail(
     if not order:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found.")
 
-    # Object-level authorization check
+    # Object-level authorization check: return 404 to avoid leaking object existence
     if order.customer_email != current_user.email and current_user.role not in ("admin", "staff"):
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access forbidden: you do not have permission to view this order.",
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Order not found.",
         )
 
     return {
@@ -577,11 +577,11 @@ async def get_customer_quotation_detail(
     if not quote:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quotation not found.")
 
-    # Object-level authorization check
+    # Object-level authorization check: return 404 to avoid leaking object existence
     if quote.recipient_email != current_user.email and current_user.role not in ("admin", "staff"):
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access forbidden: you do not have permission to view this quotation.",
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Quotation not found.",
         )
 
     return {
@@ -605,6 +605,42 @@ async def get_customer_quotation_detail(
             }
             for it in (quote.items or [])
         ],
+    }
+
+
+@router.get("/customer/enquiries/{enquiry_id}")
+async def get_customer_enquiry_detail(
+    enquiry_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Retrieve single enquiry detail with strict object-level tenant isolation."""
+    stmt = select(Inquiry).where(Inquiry.id == enquiry_id)
+    res = await db.execute(stmt)
+    inq = res.scalar_one_or_none()
+    if not inq:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Enquiry not found.")
+
+    # Object-level authorization check: return 404 to avoid leaking object existence
+    if inq.email != current_user.email and current_user.role not in ("admin", "staff"):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Enquiry not found.",
+        )
+
+    return {
+        "id": inq.id,
+        "reference_id": inq.reference_id,
+        "full_name": inq.full_name,
+        "email": inq.email,
+        "phone": inq.phone,
+        "country": inq.country,
+        "organization": inq.organization,
+        "enquiry_type": inq.enquiry_type,
+        "subject": inq.subject,
+        "message": inq.message,
+        "status": inq.status,
+        "created_at": inq.created_at,
     }
 
 

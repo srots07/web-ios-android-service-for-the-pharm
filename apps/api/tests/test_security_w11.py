@@ -320,16 +320,30 @@ async def test_csrf_rejection_on_refresh_from_unauthorized_origin():
 
 @pytest.mark.asyncio
 async def test_object_level_authorization_customer_orders():
-    """Customer A must be forbidden from accessing Customer B's order details."""
+    """Customer A must receive 404 when attempting to access unauthorized customer objects (IDOR protection)."""
     token_a = await get_customer_token()
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        # Non-existent or other customer's order ID
-        res = await ac.get(
+        # Non-existent or other customer's order ID returns 404
+        res_order = await ac.get(
             "/api/v1/auth/customer/orders/order-nonexistent-or-other",
             headers={"Authorization": f"Bearer {token_a}"},
         )
-        assert res.status_code in (403, 404)
+        assert res_order.status_code == 404
+
+        # Non-existent or other customer's quotation ID returns 404
+        res_quote = await ac.get(
+            "/api/v1/auth/customer/quotations/quote-nonexistent-or-other",
+            headers={"Authorization": f"Bearer {token_a}"},
+        )
+        assert res_quote.status_code == 404
+
+        # Non-existent or other customer's enquiry ID returns 404
+        res_enq = await ac.get(
+            "/api/v1/auth/customer/enquiries/enq-nonexistent-or-other",
+            headers={"Authorization": f"Bearer {token_a}"},
+        )
+        assert res_enq.status_code == 404
 
 
 
