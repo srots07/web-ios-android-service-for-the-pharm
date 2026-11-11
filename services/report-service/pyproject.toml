@@ -1,0 +1,21 @@
+[project]
+name = "unified-report-service"
+version = "0.1.0"
+description = "Report generation and processing service"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "pydantic>=2.10.0",
+    "celery>=5.4.0",
+    "redis>=5.2.0",
+    "aio-pika>=9.5.0",
+    "reportlab>=4.2.0",
+    "weasyprint>=62.0",
+    "openpyxl>=3.1.5",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+

@@ -1,0 +1,699 @@
+{
+  "viewportsTested": 10,
+  "overflowChecks": [
+    {
+      "viewport": "Small mobile (320x568)",
+      "route": "/",
+      "status": "PASS",
+      "scrollWidth": 320,
+      "winWidth": 320
+    },
+    {
+      "viewport": "Small mobile (320x568)",
+      "route": "/products",
+      "status": "PASS",
+      "scrollWidth": 320,
+      "winWidth": 320
+    },
+    {
+      "viewport": "Small mobile (320x568)",
+      "route": "/contact",
+      "status": "PASS",
+      "scrollWidth": 320,
+      "winWidth": 320
+    },
+    {
+      "viewport": "Small mobile (320x568)",
+      "route": "/login",
+      "status": "PASS",
+      "scrollWidth": 320,
+      "winWidth": 320
+    },
+    {
+      "viewport": "Small mobile (320x568)",
+      "route": "Admin /admin/dashboard",
+      "status": "PASS",
+      "scrollWidth": 320,
+      "winWidth": 320
+    },
+    {
+      "viewport": "Small mobile (320x568)",
+      "route": "Admin /admin/orders",
+      "status": "PASS",
+      "scrollWidth": 320,
+      "winWidth": 320
+    },
+    {
+      "viewport": "Small mobile (320x568)",
+      "route": "Admin /admin/quotations",
+      "status": "PASS",
+      "scrollWidth": 320,
+      "winWidth": 320
+    },
+    {
+      "viewport": "Small mobile (320x568)",
+      "route": "Admin /admin/products",
+      "status": "PASS",
+      "scrollWidth": 320,
+      "winWidth": 320
+    },
+    {
+      "viewport": "Small mobile (320x568)",
+      "route": "Admin /admin/users",
+      "status": "PASS",
+      "scrollWidth": 320,
+      "winWidth": 320
+    },
+    {
+      "viewport": "Mobile (360x800)",
+      "route": "/",
+      "status": "PASS",
+      "scrollWidth": 360,
+      "winWidth": 360
+    },
+    {
+      "viewport": "Mobile (360x800)",
+      "route": "/products",
+      "status": "PASS",
+      "scrollWidth": 360,
+      "winWidth": 360
+    },
+    {
+      "viewport": "Mobile (360x800)",
+      "route": "/contact",
+      "status": "PASS",
+      "scrollWidth": 360,
+      "winWidth": 360
+    },
+    {
+      "viewport": "Mobile (360x800)",
+      "route": "/login",
+      "status": "PASS",
+      "scrollWidth": 360,
+      "winWidth": 360
+    },
+    {
+      "viewport": "Mobile (360x800)",
+      "route": "Admin /admin/dashboard",
+      "status": "PASS",
+      "scrollWidth": 360,
+      "winWidth": 360
+    },
+    {
+      "viewport": "Mobile (360x800)",
+      "route": "Admin /admin/orders",
+      "status": "PASS",
+      "scrollWidth": 360,
+      "winWidth": 360
+    },
+    {
+      "viewport": "Mobile (360x800)",
+      "route": "Admin /admin/quotations",
+      "status": "PASS",
+      "scrollWidth": 360,
+      "winWidth": 360
+    },
+    {
+      "viewport": "Mobile (360x800)",
+      "route": "Admin /admin/products",
+      "status": "PASS",
+      "scrollWidth": 360,
+      "winWidth": 360
+    },
+    {
+      "viewport": "Mobile (360x800)",
+      "route": "Admin /admin/users",
+      "status": "PASS",
+      "scrollWidth": 360,
+      "winWidth": 360
+    },
+    {
+      "viewport": "Mobile (390x844)",
+      "route": "/",
+      "status": "PASS",
+      "scrollWidth": 390,
+      "winWidth": 390
+    },
+    {
+      "viewport": "Mobile (390x844)",
+      "route": "/products",
+      "status": "PASS",
+      "scrollWidth": 390,
+      "winWidth": 390
+    },
+    {
+      "viewport": "Mobile (390x844)",
+      "route": "/contact",
+      "status": "PASS",
+      "scrollWidth": 390,
+      "winWidth": 390
+    },
+    {
+      "viewport": "Mobile (390x844)",
+      "route": "/login",
+      "status": "PASS",
+      "scrollWidth": 390,
+      "winWidth": 390
+    },
+    {
+      "viewport": "Mobile (390x844)",
+      "route": "Admin /admin/dashboard",
+      "status": "PASS",
+      "scrollWidth": 390,
+      "winWidth": 390
+    },
+    {
+      "viewport": "Mobile (390x844)",
+      "route": "Admin /admin/orders",
+      "status": "PASS",
+      "scrollWidth": 390,
+      "winWidth": 390
+    },
+    {
+      "viewport": "Mobile (390x844)",
+      "route": "Admin /admin/quotations",
+      "status": "PASS",
+      "scrollWidth": 390,
+      "winWidth": 390
+    },
+    {
+      "viewport": "Mobile (390x844)",
+      "route": "Admin /admin/products",
+      "status": "PASS",
+      "scrollWidth": 390,
+      "winWidth": 390
+    },
+    {
+      "viewport": "Mobile (390x844)",
+      "route": "Admin /admin/users",
+      "status": "PASS",
+      "scrollWidth": 390,
+      "winWidth": 390
+    },
+    {
+      "viewport": "Large mobile (430x932)",
+      "route": "/",
+      "status": "PASS",
+      "scrollWidth": 430,
+      "winWidth": 430
+    },
+    {
+      "viewport": "Large mobile (430x932)",
+      "route": "/products",
+      "status": "PASS",
+      "scrollWidth": 430,
+      "winWidth": 430
+    },
+    {
+      "viewport": "Large mobile (430x932)",
+      "route": "/contact",
+      "status": "PASS",
+      "scrollWidth": 430,
+      "winWidth": 430
+    },
+    {
+      "viewport": "Large mobile (430x932)",
+      "route": "/login",
+      "status": "PASS",
+      "scrollWidth": 430,
+      "winWidth": 430
+    },
+    {
+      "viewport": "Large mobile (430x932)",
+      "route": "Admin /admin/dashboard",
+      "status": "PASS",
+      "scrollWidth": 430,
+      "winWidth": 430
+    },
+    {
+      "viewport": "Large mobile (430x932)",
+      "route": "Admin /admin/orders",
+      "status": "PASS",
+      "scrollWidth": 430,
+      "winWidth": 430
+    },
+    {
+      "viewport": "Large mobile (430x932)",
+      "route": "Admin /admin/quotations",
+      "status": "PASS",
+      "scrollWidth": 430,
+      "winWidth": 430
+    },
+    {
+      "viewport": "Large mobile (430x932)",
+      "route": "Admin /admin/products",
+      "status": "PASS",
+      "scrollWidth": 430,
+      "winWidth": 430
+    },
+    {
+      "viewport": "Large mobile (430x932)",
+      "route": "Admin /admin/users",
+      "status": "PASS",
+      "scrollWidth": 430,
+      "winWidth": 430
+    },
+    {
+      "viewport": "Small tablet (600x960)",
+      "route": "/",
+      "status": "PASS",
+      "scrollWidth": 600,
+      "winWidth": 600
+    },
+    {
+      "viewport": "Small tablet (600x960)",
+      "route": "/products",
+      "status": "PASS",
+      "scrollWidth": 600,
+      "winWidth": 600
+    },
+    {
+      "viewport": "Small tablet (600x960)",
+      "route": "/contact",
+      "status": "PASS",
+      "scrollWidth": 600,
+      "winWidth": 600
+    },
+    {
+      "viewport": "Small tablet (600x960)",
+      "route": "/login",
+      "status": "PASS",
+      "scrollWidth": 600,
+      "winWidth": 600
+    },
+    {
+      "viewport": "Small tablet (600x960)",
+      "route": "Admin /admin/dashboard",
+      "status": "PASS",
+      "scrollWidth": 600,
+      "winWidth": 600
+    },
+    {
+      "viewport": "Small tablet (600x960)",
+      "route": "Admin /admin/orders",
+      "status": "PASS",
+      "scrollWidth": 600,
+      "winWidth": 600
+    },
+    {
+      "viewport": "Small tablet (600x960)",
+      "route": "Admin /admin/quotations",
+      "status": "PASS",
+      "scrollWidth": 600,
+      "winWidth": 600
+    },
+    {
+      "viewport": "Small tablet (600x960)",
+      "route": "Admin /admin/products",
+      "status": "PASS",
+      "scrollWidth": 600,
+      "winWidth": 600
+    },
+    {
+      "viewport": "Small tablet (600x960)",
+      "route": "Admin /admin/users",
+      "status": "PASS",
+      "scrollWidth": 600,
+      "winWidth": 600
+    },
+    {
+      "viewport": "Tablet (768x1024)",
+      "route": "/",
+      "status": "PASS",
+      "scrollWidth": 768,
+      "winWidth": 768
+    },
+    {
+      "viewport": "Tablet (768x1024)",
+      "route": "/products",
+      "status": "PASS",
+      "scrollWidth": 768,
+      "winWidth": 768
+    },
+    {
+      "viewport": "Tablet (768x1024)",
+      "route": "/contact",
+      "status": "PASS",
+      "scrollWidth": 768,
+      "winWidth": 768
+    },
+    {
+      "viewport": "Tablet (768x1024)",
+      "route": "/login",
+      "status": "PASS",
+      "scrollWidth": 768,
+      "winWidth": 768
+    },
+    {
+      "viewport": "Tablet (768x1024)",
+      "route": "Admin /admin/dashboard",
+      "status": "PASS",
+      "scrollWidth": 768,
+      "winWidth": 768
+    },
+    {
+      "viewport": "Tablet (768x1024)",
+      "route": "Admin /admin/orders",
+      "status": "PASS",
+      "scrollWidth": 768,
+      "winWidth": 768
+    },
+    {
+      "viewport": "Tablet (768x1024)",
+      "route": "Admin /admin/quotations",
+      "status": "PASS",
+      "scrollWidth": 768,
+      "winWidth": 768
+    },
+    {
+      "viewport": "Tablet (768x1024)",
+      "route": "Admin /admin/products",
+      "status": "PASS",
+      "scrollWidth": 768,
+      "winWidth": 768
+    },
+    {
+      "viewport": "Tablet (768x1024)",
+      "route": "Admin /admin/users",
+      "status": "PASS",
+      "scrollWidth": 768,
+      "winWidth": 768
+    },
+    {
+      "viewport": "Large tablet (1024x1366)",
+      "route": "/",
+      "status": "PASS",
+      "scrollWidth": 1024,
+      "winWidth": 1024
+    },
+    {
+      "viewport": "Large tablet (1024x1366)",
+      "route": "/products",
+      "status": "PASS",
+      "scrollWidth": 1024,
+      "winWidth": 1024
+    },
+    {
+      "viewport": "Large tablet (1024x1366)",
+      "route": "/contact",
+      "status": "PASS",
+      "scrollWidth": 1024,
+      "winWidth": 1024
+    },
+    {
+      "viewport": "Large tablet (1024x1366)",
+      "route": "/login",
+      "status": "PASS",
+      "scrollWidth": 1024,
+      "winWidth": 1024
+    },
+    {
+      "viewport": "Large tablet (1024x1366)",
+      "route": "Admin /admin/dashboard",
+      "status": "PASS",
+      "scrollWidth": 1024,
+      "winWidth": 1024
+    },
+    {
+      "viewport": "Large tablet (1024x1366)",
+      "route": "Admin /admin/orders",
+      "status": "PASS",
+      "scrollWidth": 1024,
+      "winWidth": 1024
+    },
+    {
+      "viewport": "Large tablet (1024x1366)",
+      "route": "Admin /admin/quotations",
+      "status": "PASS",
+      "scrollWidth": 1024,
+      "winWidth": 1024
+    },
+    {
+      "viewport": "Large tablet (1024x1366)",
+      "route": "Admin /admin/products",
+      "status": "PASS",
+      "scrollWidth": 1024,
+      "winWidth": 1024
+    },
+    {
+      "viewport": "Large tablet (1024x1366)",
+      "route": "Admin /admin/users",
+      "status": "PASS",
+      "scrollWidth": 1024,
+      "winWidth": 1024
+    },
+    {
+      "viewport": "Laptop (1280x800)",
+      "route": "/",
+      "status": "PASS",
+      "scrollWidth": 1280,
+      "winWidth": 1280
+    },
+    {
+      "viewport": "Laptop (1280x800)",
+      "route": "/products",
+      "status": "PASS",
+      "scrollWidth": 1280,
+      "winWidth": 1280
+    },
+    {
+      "viewport": "Laptop (1280x800)",
+      "route": "/contact",
+      "status": "PASS",
+      "scrollWidth": 1280,
+      "winWidth": 1280
+    },
+    {
+      "viewport": "Laptop (1280x800)",
+      "route": "/login",
+      "status": "PASS",
+      "scrollWidth": 1280,
+      "winWidth": 1280
+    },
+    {
+      "viewport": "Laptop (1280x800)",
+      "route": "Admin /admin/dashboard",
+      "status": "PASS",
+      "scrollWidth": 1280,
+      "winWidth": 1280
+    },
+    {
+      "viewport": "Laptop (1280x800)",
+      "route": "Admin /admin/orders",
+      "status": "PASS",
+      "scrollWidth": 1280,
+      "winWidth": 1280
+    },
+    {
+      "viewport": "Laptop (1280x800)",
+      "route": "Admin /admin/quotations",
+      "status": "PASS",
+      "scrollWidth": 1280,
+      "winWidth": 1280
+    },
+    {
+      "viewport": "Laptop (1280x800)",
+      "route": "Admin /admin/products",
+      "status": "PASS",
+      "scrollWidth": 1280,
+      "winWidth": 1280
+    },
+    {
+      "viewport": "Laptop (1280x800)",
+      "route": "Admin /admin/users",
+      "status": "PASS",
+      "scrollWidth": 1280,
+      "winWidth": 1280
+    },
+    {
+      "viewport": "Desktop (1440x900)",
+      "route": "/",
+      "status": "PASS",
+      "scrollWidth": 1440,
+      "winWidth": 1440
+    },
+    {
+      "viewport": "Desktop (1440x900)",
+      "route": "/products",
+      "status": "PASS",
+      "scrollWidth": 1440,
+      "winWidth": 1440
+    },
+    {
+      "viewport": "Desktop (1440x900)",
+      "route": "/contact",
+      "status": "PASS",
+      "scrollWidth": 1440,
+      "winWidth": 1440
+    },
+    {
+      "viewport": "Desktop (1440x900)",
+      "route": "/login",
+      "status": "PASS",
+      "scrollWidth": 1440,
+      "winWidth": 1440
+    },
+    {
+      "viewport": "Desktop (1440x900)",
+      "route": "Admin /admin/dashboard",
+      "status": "PASS",
+      "scrollWidth": 1440,
+      "winWidth": 1440
+    },
+    {
+      "viewport": "Desktop (1440x900)",
+      "route": "Admin /admin/orders",
+      "status": "PASS",
+      "scrollWidth": 1440,
+      "winWidth": 1440
+    },
+    {
+      "viewport": "Desktop (1440x900)",
+      "route": "Admin /admin/quotations",
+      "status": "PASS",
+      "scrollWidth": 1440,
+      "winWidth": 1440
+    },
+    {
+      "viewport": "Desktop (1440x900)",
+      "route": "Admin /admin/products",
+      "status": "PASS",
+      "scrollWidth": 1440,
+      "winWidth": 1440
+    },
+    {
+      "viewport": "Desktop (1440x900)",
+      "route": "Admin /admin/users",
+      "status": "PASS",
+      "scrollWidth": 1440,
+      "winWidth": 1440
+    },
+    {
+      "viewport": "Large desktop (1920x1080)",
+      "route": "/",
+      "status": "PASS",
+      "scrollWidth": 1920,
+      "winWidth": 1920
+    },
+    {
+      "viewport": "Large desktop (1920x1080)",
+      "route": "/products",
+      "status": "PASS",
+      "scrollWidth": 1920,
+      "winWidth": 1920
+    },
+    {
+      "viewport": "Large desktop (1920x1080)",
+      "route": "/contact",
+      "status": "PASS",
+      "scrollWidth": 1920,
+      "winWidth": 1920
+    },
+    {
+      "viewport": "Large desktop (1920x1080)",
+      "route": "/login",
+      "status": "PASS",
+      "scrollWidth": 1920,
+      "winWidth": 1920
+    },
+    {
+      "viewport": "Large desktop (1920x1080)",
+      "route": "Admin /admin/dashboard",
+      "status": "PASS",
+      "scrollWidth": 1920,
+      "winWidth": 1920
+    },
+    {
+      "viewport": "Large desktop (1920x1080)",
+      "route": "Admin /admin/orders",
+      "status": "PASS",
+      "scrollWidth": 1920,
+      "winWidth": 1920
+    },
+    {
+      "viewport": "Large desktop (1920x1080)",
+      "route": "Admin /admin/quotations",
+      "status": "PASS",
+      "scrollWidth": 1920,
+      "winWidth": 1920
+    },
+    {
+      "viewport": "Large desktop (1920x1080)",
+      "route": "Admin /admin/products",
+      "status": "PASS",
+      "scrollWidth": 1920,
+      "winWidth": 1920
+    },
+    {
+      "viewport": "Large desktop (1920x1080)",
+      "route": "Admin /admin/users",
+      "status": "PASS",
+      "scrollWidth": 1920,
+      "winWidth": 1920
+    }
+  ],
+  "mobileDrawerChecks": [
+    {
+      "test": "Mobile sidebar opens with backdrop and close button",
+      "status": "PASS",
+      "details": {
+        "sidebarOpen": true,
+        "sidebarTransform": "matrix(1, 0, 0, 1, 0, 0)",
+        "backdropExists": true,
+        "closeBtnVisible": true
+      }
+    },
+    {
+      "test": "Mobile sidebar closes on backdrop click",
+      "status": "PASS",
+      "details": {
+        "sidebarOpen": false,
+        "backdropExists": false
+      }
+    }
+  ],
+  "tableScrollChecks": [
+    {
+      "page": "/admin/orders",
+      "status": "PASS",
+      "details": {
+        "tableExists": true,
+        "containerOverflowX": "auto",
+        "tableMinWidth": "700px",
+        "containerWidth": 364,
+        "tableScrollWidth": 825
+      }
+    }
+  ],
+  "modalLineItemChecks": [
+    {
+      "modal": "Create Order Line Items",
+      "status": "PASS",
+      "details": {
+        "modalExists": true,
+        "itemRowClasses": "grid grid-cols-2 sm:grid-cols-12 gap-2 items-center bg-muted/20 p-2.5 rounded-lg border border-border",
+        "itemRowWidth": 302,
+        "modalWidth": 390
+      }
+    },
+    {
+      "modal": "Create Quotation Line Items",
+      "status": "PASS",
+      "details": {
+        "modalExists": true,
+        "itemRowClasses": "grid grid-cols-2 sm:grid-cols-12 gap-2 items-center rounded-xl border border-border bg-muted/20 p-2.5 text-xs"
+      }
+    }
+  ],
+  "screenshotsSaved": [
+    "screenshots/admin-390x844-drawer-open.png",
+    "screenshots/admin-orders-390x844.png",
+    "screenshots/admin-quotations-modal-390x844.png",
+    "screenshots/home-390x844.png",
+    "screenshots/home-768x1024.png",
+    "screenshots/home-1440x900.png",
+    "screenshots/products-390x844.png",
+    "screenshots/login-320x568.png"
+  ],
+  "errors": []
+}

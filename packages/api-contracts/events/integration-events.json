@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "IntegrationEvents",
+  "description": "Event contracts for third-party inbound/outbound webhooks, OAuth sync, and messaging",
+  "type": "object",
+  "oneOf": [
+    {
+      "properties": {
+        "event_name": { "const": "integration.webhook.received" },
+        "source": { "type": "string" },
+        "payload": { "type": "object" },
+        "received_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["event_name", "source", "payload", "received_at"]
+    }
+  ]
+}
+

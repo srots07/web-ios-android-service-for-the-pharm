@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ReportEvents",
+  "description": "Event contracts for asynchronous report generation pipelines",
+  "type": "object",
+  "oneOf": [
+    {
+      "properties": {
+        "event_name": { "const": "report.requested" },
+        "report_id": { "type": "string", "format": "uuid" },
+        "report_type": { "type": "string" },
+        "user_id": { "type": "string", "format": "uuid" },
+        "parameters": { "type": "object" }
+      },
+      "required": ["event_name", "report_id", "report_type", "user_id"]
+    },
+    {
+      "properties": {
+        "event_name": { "const": "report.completed" },
+        "report_id": { "type": "string", "format": "uuid" },
+        "download_url": { "type": "string", "format": "uri" },
+        "generated_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["event_name", "report_id", "download_url", "generated_at"]
+    }
+  ]
+}
+

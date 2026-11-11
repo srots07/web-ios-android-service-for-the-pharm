@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "NotificationEvents",
+  "description": "Event contracts for notifications across FCM, APNs, in-app, SMS, and email",
+  "type": "object",
+  "oneOf": [
+    {
+      "properties": {
+        "event_name": { "const": "notification.dispatch" },
+        "recipient_id": { "type": "string", "format": "uuid" },
+        "channels": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["push", "in_app", "sms", "email"] }
+        },
+        "title": { "type": "string" },
+        "body": { "type": "string" },
+        "metadata": { "type": "object" }
+      },
+      "required": ["event_name", "recipient_id", "channels", "title", "body"]
+    }
+  ]
+}
+

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FileEvents",
+  "description": "Event contracts for document and asset uploads, scans, and storage lifecycle",
+  "type": "object",
+  "oneOf": [
+    {
+      "properties": {
+        "event_name": { "const": "file.uploaded" },
+        "file_id": { "type": "string", "format": "uuid" },
+        "filename": { "type": "string" },
+        "size_bytes": { "type": "integer" },
+        "mime_type": { "type": "string" },
+        "storage_path": { "type": "string" }
+      },
+      "required": ["event_name", "file_id", "filename", "size_bytes", "mime_type", "storage_path"]
+    },
+    {
+      "properties": {
+        "event_name": { "const": "file.scanned" },
+        "file_id": { "type": "string", "format": "uuid" },
+        "is_clean": { "type": "boolean" },
+        "scan_timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["event_name", "file_id", "is_clean", "scan_timestamp"]
+    }
+  ]
+}
+

@@ -1,0 +1,46 @@
+openapi: 3.1.0
+info:
+  title: Unified Platform API Contracts
+  description: Authoritative single source of truth for platform API contracts and events
+  version: 1.0.0
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Local development gateway
+paths:
+  /health:
+    get:
+      summary: System Health Check
+      responses:
+        '200':
+          description: Healthy status response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  service:
+                    type: string
+                    example: "core-api"
+  /dashboard/summary:
+    get:
+      summary: Get Dashboard Metrics
+      responses:
+        '200':
+          description: Summary metrics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users_count:
+                    type: integer
+                  organizations_count:
+                    type: integer
+                  active_workflows:
+                    type: integer
+                  pending_tasks:
+                    type: integer
+

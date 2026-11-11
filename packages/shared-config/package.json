@@ -1,0 +1,9 @@
+{
+  "name": "@unified/shared-config",
+  "version": "1.0.0",
+  "main": "index.js",
+  "files": [
+    "tsconfig.base.json"
+  ]
+}
+
