@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security.tokens import decode_access_token
-from app.database.models import User
+from app.database.models import User, UserSession
 from app.database.session import get_db
 
 security = HTTPBearer(auto_error=False)
@@ -57,6 +57,28 @@ async def get_current_user(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account has been disabled or suspended.",
         )
+
+    # Global token revocation check (e.g., logout-all, password change, account suspension)
+    token_ver = payload.get("token_version")
+    if token_ver is not None and token_ver < user.token_version:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication token has been revoked.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Session-specific revocation check (e.g., single-device logout)
+    sid = payload.get("sid")
+    if sid:
+        s_stmt = select(UserSession).where(UserSession.id == sid)
+        s_res = await db.execute(s_stmt)
+        sess = s_res.scalar_one_or_none()
+        if sess and sess.revoked_at is not None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Session and access token have been revoked.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
 
     return user
 

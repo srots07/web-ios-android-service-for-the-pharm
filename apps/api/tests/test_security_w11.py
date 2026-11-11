@@ -498,6 +498,96 @@ async def test_ip_spoofing_rejected_from_untrusted_client():
     assert get_trusted_client_ip(req_trusted) == "203.0.113.99"
 
 
+@pytest.mark.asyncio
+async def test_refresh_token_reuse_detection_revokes_family():
+    """Reusing an old rotated refresh token triggers reuse detection and revokes the entire session family."""
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        # 1. Login to obtain Token A
+        res_login = await ac.post(
+            "/api/v1/auth/login",
+            json={"email": "admin@primebyactivist.com", "password": "DevAdminPassword@2026!"},
+        )
+        assert res_login.status_code == 200
+        token_a = res_login.cookies.get("prime_refresh_token")
+        assert token_a is not None
+
+        # 2. Rotate Token A -> Token B
+        res_refresh_1 = await ac.post(
+            "/api/v1/auth/refresh",
+            cookies={"prime_refresh_token": token_a},
+        )
+        assert res_refresh_1.status_code == 200
+        token_b = res_refresh_1.cookies.get("prime_refresh_token")
+        assert token_b is not None
+        assert token_b != token_a
+
+        # 3. Malicious / replay attempt: reuse Token A
+        res_reuse = await ac.post(
+            "/api/v1/auth/refresh",
+            cookies={"prime_refresh_token": token_a},
+        )
+        assert res_reuse.status_code == 401
+        assert "reuse detected" in res_reuse.json()["detail"].lower()
+
+        # 4. Legitimate Token B should now ALSO be revoked because entire family was terminated
+        res_refresh_family_revoked = await ac.post(
+            "/api/v1/auth/refresh",
+            cookies={"prime_refresh_token": token_b},
+        )
+        assert res_refresh_family_revoked.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_logout_and_logout_all_invalidate_access_tokens():
+    """Logout invalidates single-session access tokens, and logout-all invalidates access tokens across all devices."""
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        # 1. Login
+        res_login = await ac.post(
+            "/api/v1/auth/login",
+            json={"email": "admin@primebyactivist.com", "password": "DevAdminPassword@2026!"},
+        )
+        assert res_login.status_code == 200
+        access_token_1 = res_login.json()["access_token"]
+        refresh_token_1 = res_login.cookies.get("prime_refresh_token")
+
+        # Verify access token works initially
+        res_me = await ac.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {access_token_1}"})
+        assert res_me.status_code == 200
+
+        # Logout of session
+        res_logout = await ac.post(
+            "/api/v1/auth/logout",
+            cookies={"prime_refresh_token": refresh_token_1},
+        )
+        assert res_logout.status_code == 200
+
+        # Access token associated with logged-out session must now be rejected
+        res_me_revoked = await ac.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {access_token_1}"})
+        assert res_me_revoked.status_code == 401
+        assert "revoked" in res_me_revoked.json()["detail"].lower()
+
+        # 2. Login again for logout-all test
+        res_login_2 = await ac.post(
+            "/api/v1/auth/login",
+            json={"email": "admin@primebyactivist.com", "password": "DevAdminPassword@2026!"},
+        )
+        access_token_2 = res_login_2.json()["access_token"]
+        assert (await ac.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {access_token_2}"})).status_code == 200
+
+        # Call logout-all
+        res_logout_all = await ac.post(
+            "/api/v1/auth/logout-all",
+            headers={"Authorization": f"Bearer {access_token_2}"},
+        )
+        assert res_logout_all.status_code == 200
+
+        # Access token must now be rejected
+        res_me_all_revoked = await ac.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {access_token_2}"})
+        assert res_me_all_revoked.status_code == 401
+        assert "revoked" in res_me_all_revoked.json()["detail"].lower()
+
+
+
 
 
 

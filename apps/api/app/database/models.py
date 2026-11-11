@@ -85,6 +85,7 @@ class User(Base):
     business_address = Column(Text, nullable=True)
     is_active = Column(Boolean, nullable=False, default=True)
     is_verified = Column(Boolean, nullable=False, default=False)
+    token_version = Column(Integer, nullable=False, default=1)
     created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
     last_login_at = Column(DateTime(timezone=True), nullable=True)
 
@@ -96,6 +97,7 @@ class UserSession(Base):
     __tablename__ = "user_sessions"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
+    family_id = Column(String(36), index=True, nullable=True, default=generate_uuid)
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     refresh_token_hash = Column(String(255), unique=True, index=True, nullable=False)
     user_agent = Column(String(512), nullable=True)

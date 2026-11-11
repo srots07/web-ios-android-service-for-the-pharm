@@ -1,4 +1,5 @@
 import sys
+import uuid
 from datetime import UTC, timedelta
 from urllib.parse import urlsplit
 
@@ -171,21 +172,15 @@ async def login(
     # Successful login: reset failure counters for this email + IP
     account_lockout.record_success(email_clean, client_ip)
 
-    # Create JWT access token
-    access_token = create_access_token({
-        "sub": user.id,
-        "email": user.email,
-        "role": user.role,
-        "name": user.full_name,
-    })
-
     # Create secure refresh token and session
     raw_refresh = generate_secure_token(48)
     refresh_hash = hash_token(raw_refresh)
     session_days = settings.REFRESH_TOKEN_EXPIRE_DAYS if payload.remember_me else 1
     session_expiry = utc_now() + timedelta(days=session_days)
+    family_id = uuid.uuid4().hex
 
     user_session = UserSession(
+        family_id=family_id,
         user_id=user.id,
         refresh_token_hash=refresh_hash,
         user_agent=request.headers.get("user-agent", "Unknown"),
@@ -194,6 +189,17 @@ async def login(
         created_at=utc_now(),
     )
     db.add(user_session)
+    await db.flush()
+
+    # Create JWT access token with token_version and session ID
+    access_token = create_access_token({
+        "sub": user.id,
+        "email": user.email,
+        "role": user.role,
+        "name": user.full_name,
+        "token_version": user.token_version,
+        "sid": user_session.id,
+    })
 
     # Update last login timestamp
     user.last_login_at = utc_now()
@@ -278,19 +284,49 @@ async def refresh_session(
         )
 
     current_hash = hash_token(raw_refresh)
-    stmt = select(UserSession).where(
-        UserSession.refresh_token_hash == current_hash,
-        UserSession.revoked_at.is_(None),
-    )
+    stmt = select(UserSession).where(UserSession.refresh_token_hash == current_hash)
     result = await db.execute(stmt)
     active_session = result.scalar_one_or_none()
 
     if not active_session:
-        # Potential reuse or invalid session; clear cookie
         clear_auth_cookies(response)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or revoked refresh session.",
+        )
+
+    # REUSE DETECTION: if session was already revoked, revoke the entire family!
+    if active_session.revoked_at is not None:
+        clear_auth_cookies(response)
+        if active_session.family_id:
+            revoke_stmt = (
+                update(UserSession)
+                .where(
+                    UserSession.family_id == active_session.family_id,
+                    UserSession.revoked_at.is_(None),
+                )
+                .values(revoked_at=utc_now())
+            )
+            await db.execute(revoke_stmt)
+        # Invalidate access tokens for this user
+        u_stmt = select(User).where(User.id == active_session.user_id)
+        u_res = await db.execute(u_stmt)
+        u_obj = u_res.scalar_one_or_none()
+        if u_obj:
+            u_obj.token_version += 1
+
+        audit_entry = AuditEvent(
+            user_id=active_session.user_id,
+            event_type="TOKEN_REUSE_DETECTED",
+            description=f"Reused refresh token detected for family {active_session.family_id}. All family sessions revoked.",
+            created_at=utc_now(),
+        )
+        db.add(audit_entry)
+        await db.commit()
+
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Security violation: token reuse detected. All active sessions in family have been revoked.",
         )
 
     session_exp = active_session.expires_at
@@ -314,13 +350,15 @@ async def refresh_session(
             detail="User account associated with session is no longer active.",
         )
 
-    # Rotate refresh token: revoke current, issue new
+    # Rotate refresh token: revoke current, issue new sharing the same family_id
     active_session.revoked_at = utc_now()
+    family_id = active_session.family_id or uuid.uuid4().hex
 
     new_raw_refresh = generate_secure_token(48)
     new_hash = hash_token(new_raw_refresh)
     new_session = UserSession(
         user_id=user.id,
+        family_id=family_id,
         refresh_token_hash=new_hash,
         user_agent=request.headers.get("user-agent", "Unknown"),
         ip_address=request.client.host if request.client else None,
@@ -328,15 +366,18 @@ async def refresh_session(
         created_at=utc_now(),
     )
     db.add(new_session)
-    await db.commit()
+    await db.flush()
 
-    # Issue new access token
+    # Issue new access token with updated token_version and new sid
     new_access_token = create_access_token({
         "sub": user.id,
         "email": user.email,
         "role": user.role,
         "name": user.full_name,
+        "token_version": user.token_version,
+        "sid": new_session.id,
     })
+    await db.commit()
 
     # Set new cookie via helper
     set_auth_cookie(response, new_raw_refresh, settings.REFRESH_TOKEN_EXPIRE_DAYS)
@@ -385,6 +426,10 @@ async def logout_all(
         .values(revoked_at=utc_now())
     )
     await db.execute(stmt)
+
+    # Invalidate all existing access tokens across all devices
+    current_user.token_version += 1
+    db.add(current_user)
 
     clear_auth_cookies(response)
 
