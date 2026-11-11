@@ -82,122 +82,107 @@ export function PublicHeader() {
             </div>
           </Link>
 
-          {/* SEARCH BAR (Desktop) */}
-          <form
-            className="prime-search"
-            role="search"
-            onSubmit={handleSearch}
-            aria-label="Product Search"
-          >
-            <Search size={16} aria-hidden="true" />
-            <input
-              type="search"
-              placeholder="Search formulations..."
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              aria-label="Search products"
-            />
-            <button type="submit" aria-label="Submit search query">
-              <ChevronRight size={16} />
-            </button>
-          </form>
-
-          {/* DESKTOP NAVIGATION */}
-          <nav
-            className="prime-navigation"
-            role="navigation"
-            aria-label="Main Navigation"
-          >
-            {publicNavItems.map((item) => {
-              const isActive =
-                item.href === "/" ? pathname === "/" : pathname?.startsWith(item.href);
-
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`prime-nav-link ${isActive ? "selected active" : ""}`}
-                  aria-current={isActive ? "page" : undefined}
-                >
-                  <span>{item.label}</span>
-
-                  {item.badge && (
-                    <span className="nav-deal-badge nav-badge" aria-label={`${item.badge} alert`}>
-                      {item.badge}
-                    </span>
-                  )}
-                </Link>
-              );
-            })}
-          </nav>
-
-          {/* ACTION BUTTONS */}
-          <div className="prime-header-actions prime-actions">
-            {/* Cart Button */}
-            <Link
-              href="/cart"
-              className="cart-button prime-cart"
-              aria-label={`Shopping Cart, ${cartCount} items`}
+          <div className="prime-header-cluster">
+            {/* SEARCH BAR (Desktop) */}
+            <form
+              className="prime-search"
+              role="search"
+              onSubmit={handleSearch}
+              aria-label="Product Search"
             >
-              <ShoppingBag size={18} aria-hidden="true" />
-              <span>Cart</span>
-              <span className="cart-badge-indicator" aria-hidden="true">
-                {cartCount}
-              </span>
-            </Link>
+              <Search size={16} aria-hidden="true" />
+              <input
+                type="search"
+                placeholder="Search products..."
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                aria-label="Search products"
+              />
+            </form>
 
-            {/* Admin Hub / Account Access */}
-            {authenticated ? (
+            {/* DESKTOP NAVIGATION */}
+            <nav
+              className="prime-navigation"
+              role="navigation"
+              aria-label="Main Navigation"
+            >
+              {publicNavItems.map((item) => {
+                const isActive =
+                  item.href === "/" ? pathname === "/" : pathname?.startsWith(item.href);
+
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`prime-nav-link ${isActive ? "selected active" : ""}`}
+                    aria-current={isActive ? "page" : undefined}
+                  >
+                    <span>{item.label}</span>
+
+                    {item.badge && (
+                      <span className="nav-deal-badge nav-badge" aria-label={`${item.badge} alert`}>
+                        {item.badge}
+                      </span>
+                    )}
+                  </Link>
+                );
+              })}
+            </nav>
+
+            {/* ACTION BUTTONS */}
+            <div className="prime-header-actions prime-actions">
+              {/* Cart Button */}
+              <Link
+                href="/cart"
+                className="cart-button prime-cart"
+                aria-label={`Shopping Cart, ${cartCount} items`}
+              >
+                <ShoppingBag size={18} aria-hidden="true" />
+                <span>Cart</span>
+                {cartCount > 0 && (
+                  <span className="cart-badge-indicator" aria-hidden="true">
+                    {cartCount}
+                  </span>
+                )}
+              </Link>
+
+              {/* Admin Hub / Account Access */}
               <Link
                 href="/admin"
                 className="admin-hub prime-admin"
-                aria-label={`Admin Hub - Logged in as ${user?.full_name || "Admin"}`}
+                aria-label={`Admin Hub - Logged in as ${user?.full_name || "Dr."}`}
               >
                 <span className="admin-avatar" aria-hidden="true">
-                  {(user?.full_name || "A").charAt(0).toUpperCase()}
+                  {(user?.full_name || "D").charAt(0).toUpperCase()}
                 </span>
                 <span className="admin-info admin-label">
                   <small>ADMIN HUB</small>
-                  <strong>{user?.full_name || "Admin"}</strong>
+                  <strong>{user?.full_name || "Dr."}</strong>
                 </span>
               </Link>
-            ) : (
-              <Link
-                href="/admin"
-                className="admin-hub prime-admin"
-                aria-label="Admin Portal Access"
-              >
-                <span className="admin-avatar" aria-hidden="true">
-                  <User size={14} />
-                </span>
-                <span className="admin-info admin-label">
-                  <small>PORTAL</small>
-                  <strong>Admin Hub</strong>
-                </span>
-              </Link>
-            )}
 
-            {/* Logout button if authenticated */}
-            {authenticated ? (
-              <button
-                type="button"
-                className="logout-button prime-logout"
-                onClick={handleLogout}
-                title="Sign out"
-                aria-label="Sign out of account"
-              >
-                <LogOut size={18} />
-              </button>
-            ) : (
-              <Link
-                href="/login"
-                className="logout-button prime-logout"
-                title="Partner Login"
-                aria-label="Partner Login"
-              >
-                <User size={18} />
-              </Link>
-            )}
+              {/* Logout button */}
+              {authenticated ? (
+                <button
+                  type="button"
+                  className="logout-button prime-logout"
+                  onClick={handleLogout}
+                  title="Sign out"
+                  aria-label="Sign out of account"
+                >
+                  <LogOut size={18} />
+                </button>
+              ) : (
+                <Link
+                  href="/login"
+                  className="logout-button prime-logout"
+                  title="Sign out"
+                  aria-label="Sign out of account"
+                >
+                  <LogOut size={18} />
+                </Link>
+              )}
+            </div>
           </div>
 
           {/* MOBILE MENU TOGGLE BUTTON */}

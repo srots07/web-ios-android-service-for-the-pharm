@@ -39,6 +39,23 @@ ALLOWED_MIME_TYPES = {
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB limit
 
 
+def validate_magic_bytes(content: bytes, content_type: str) -> bool:
+    """Validate binary file header signatures to prevent MIME spoofing."""
+    if not content or len(content) < 4:
+        return False
+    if content_type == "application/pdf":
+        return content.startswith(b"%PDF-")
+    if content_type in ("image/jpeg", "image/jpg"):
+        return content.startswith(b"\xff\xd8\xff")
+    if content_type == "image/png":
+        return content.startswith(b"\x89PNG\r\n\x1a\n")
+    if content_type == "image/webp":
+        return content.startswith(b"RIFF") and b"WEBP" in content[8:16]
+    if content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+        return content.startswith(b"PK\x03\x04")
+    return False
+
+
 class UploadedFileResponse(BaseModel):
     id: str
     filename: str
@@ -96,7 +113,14 @@ async def upload_document(
             detail=f"File exceeds maximum allowed size of {MAX_FILE_SIZE // (1024 * 1024)} MB.",
         )
 
-    # 4. Generate unique, safe storage filename preventing path traversal
+    # 4. Strict binary magic signature validation
+    if not validate_magic_bytes(content, content_type):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Binary content does not match signature for claimed MIME type '{content_type}'.",
+        )
+
+    # 5. Generate unique, safe storage filename preventing path traversal
     clean_base = re.sub(r'[^a-zA-Z0-9_\-]', '', os.path.splitext(original_name)[0])[:32]
     stored_filename = f"{uuid.uuid4().hex[:12]}_{clean_base}{extension}"
     target_path = STORAGE_DIR / stored_filename
@@ -175,6 +199,10 @@ async def download_document(
         path=str(file_path),
         filename=record.filename,
         media_type=record.content_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="{record.filename}"',
+            "X-Content-Type-Options": "nosniff",
+        },
     )
 
 

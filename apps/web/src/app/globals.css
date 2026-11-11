@@ -192,7 +192,7 @@ svg {
 }
 
 /* ==============================================================================
-   NAVBAR & HEADER STYLING (Preserved & Optimized)
+   NAVBAR & HEADER STYLING (Polished matching reference screenshot)
    ============================================================================== */
 
 .prime-header,
@@ -202,51 +202,58 @@ svg {
   top: 0;
   z-index: 1000;
   width: 100%;
-  background: rgba(255, 255, 255, 0.96);
-  border-bottom: 1px solid var(--border-subtle);
-  box-shadow: 0 3px 15px rgba(16, 61, 48, 0.05);
-  backdrop-filter: blur(18px);
+  background: transparent;
 }
 
 [data-theme="dark"] .prime-header,
 [data-theme="dark"] .site-header {
-  background: rgba(20, 34, 28, 0.95);
-  border-bottom: 1px solid var(--border-subtle);
+  background: transparent;
 }
 
 .prime-header-inner,
 .prime-navbar-inner,
 .header-inner {
-  max-width: var(--container-max);
-  min-height: var(--navbar-height);
+  width: 100%;
+  max-width: 100%;
   margin: 0 auto;
-  padding: 0 24px;
+  padding: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 20px;
 }
 
-/* Brand logos */
+/* Brand logos capsule container attached to top left with rounded bottom-right */
 .prime-brand,
 .brand {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
   flex-shrink: 0;
+  text-decoration: none;
+  background: #ffffff;
+  padding: 6px 26px 8px 24px;
+  border-bottom-right-radius: 28px;
+  box-shadow: 0 4px 16px rgba(16, 61, 48, 0.06);
+  border-right: 1px solid rgba(220, 230, 224, 0.7);
+  border-bottom: 1px solid rgba(220, 230, 224, 0.7);
+  transition: opacity var(--transition-fast);
+}
+
+.prime-brand:hover {
+  opacity: 0.95;
 }
 
 .prime-logo {
   width: 44px;
-  height: 48px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .activist-logo {
-  width: 95px;
-  height: 46px;
+  width: 92px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -260,23 +267,38 @@ svg {
   display: block;
 }
 
-/* Search bar */
+/* Right header cluster capsule attached to top right with rounded bottom-left */
+.prime-header-cluster {
+  display: flex;
+  align-items: center;
+  gap: clamp(10px, 1.3vw, 22px);
+  background: #ffffff;
+  padding: 6px 20px 8px 24px;
+  border-bottom-left-radius: 28px;
+  box-shadow: 0 4px 16px rgba(16, 61, 48, 0.06);
+  border-left: 1px solid rgba(220, 230, 224, 0.7);
+  border-bottom: 1px solid rgba(220, 230, 224, 0.7);
+  margin-left: auto;
+}
+
+/* Rounded search bar matching reference pill style */
 .prime-search {
-  width: 220px;
-  height: 42px;
+  width: clamp(190px, 16vw, 250px);
+  height: 38px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   padding: 0 14px;
-  color: var(--text-muted);
-  background: var(--bg-surface-subtle);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-full);
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  color: #7b8b83;
+  background: #f4f8f5;
+  border: 1px solid #dce6e0;
+  border-radius: 9999px;
+  transition: all var(--transition-fast);
 }
 
 .prime-search:focus-within {
+  background: #ffffff;
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(23, 107, 80, 0.12);
 }
@@ -289,64 +311,81 @@ svg {
   background: transparent;
   color: var(--text-primary);
   font-size: 13px;
+  font-weight: 500;
+}
+
+.prime-search input::placeholder {
+  color: #8c9c94;
 }
 
 .prime-search button {
-  display: flex;
-  border: none;
-  background: transparent;
-  color: var(--primary);
-  cursor: pointer;
-  padding: 0;
+  display: none;
 }
 
-/* Desktop navigation */
+/* Desktop navigation matching reference pill & typography */
 .prime-navigation,
 .navigation {
   display: flex;
-  flex: 1;
   align-items: center;
-  justify-content: center;
-  gap: clamp(12px, 1.8vw, 24px);
+  gap: clamp(6px, 1.2vw, 18px);
 }
 
 .prime-navigation a,
 .navigation a {
-  display: flex;
+  position: relative;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
   white-space: nowrap;
-  color: var(--text-secondary);
-  font-size: 12px;
+  color: #44564e;
+  font-size: 12.5px;
   font-weight: 800;
   letter-spacing: 0.5px;
-  padding: 8px 12px;
-  border-radius: var(--radius-full);
-  transition: color var(--transition-fast), background var(--transition-fast);
+  text-transform: uppercase;
+  padding: 7px 13px;
+  border-radius: 9999px;
+  transition: all var(--transition-fast);
+  text-decoration: none;
 }
 
 .prime-navigation a:hover,
 .navigation a:hover {
   color: var(--primary);
-  background: var(--primary-subtle);
+  background: rgba(23, 107, 80, 0.06);
 }
 
+/* Pill active state with centered underline accent matching screenshot */
 .prime-navigation a.active,
 .prime-navigation a.selected {
-  background: var(--primary-subtle);
-  color: var(--primary-dark);
+  background: #e5f2ec;
+  color: #0d3d2e;
 }
 
-/* Deals badge */
+.prime-navigation a.active::after,
+.prime-navigation a.selected::after {
+  content: "";
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 14px;
+  height: 2.5px;
+  background: #0d3d2e;
+  border-radius: 2px;
+}
+
+/* Golden Deals Pill Badge */
 .nav-badge,
 .nav-deal-badge {
-  padding: 3px 7px;
-  border-radius: var(--radius-full);
-  background: var(--accent-gold);
-  color: #3b2b0a;
-  font-size: 9px;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  background: #c69229;
+  color: #ffffff;
+  font-size: 9.5px;
   font-weight: 900;
   letter-spacing: 0.5px;
+  text-transform: uppercase;
+  box-shadow: 0 1px 3px rgba(198, 146, 41, 0.35);
 }
 
 /* Action buttons */
@@ -355,64 +394,71 @@ svg {
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-shrink: 0;
 }
 
+/* Cart Button matching light green capsule pill */
 .cart-button,
 .prime-cart {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 16px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-full);
-  background: var(--bg-surface-subtle);
-  color: var(--primary-dark);
+  padding: 7px 16px;
+  border: 1px solid #d1e3d8;
+  border-radius: 9999px;
+  background: #ebf5ef;
+  color: #0d3d2e;
   font-size: 13px;
   font-weight: 800;
   transition: all var(--transition-fast);
-  position: relative;
+  text-decoration: none;
+}
+
+.cart-button:hover,
+.prime-cart:hover {
+  background: #e0efe6;
+  border-color: var(--primary);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(23, 107, 80, 0.1);
 }
 
 .cart-badge-indicator {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 18px;
-  height: 18px;
+  min-width: 17px;
+  height: 17px;
   padding: 0 4px;
-  border-radius: var(--radius-full);
+  border-radius: 9999px;
   background: var(--primary);
   color: white;
-  font-size: 11px;
-  font-weight: 800;
+  font-size: 10px;
+  font-weight: 900;
   line-height: 1;
 }
 
-.cart-button:hover,
-.prime-cart:hover {
-  background: var(--primary-subtle);
-  border-color: var(--primary);
-}
-
+/* Admin Hub Capsule Pill matching reference: Dark green body + gold border + circular avatar */
 .admin-hub,
 .prime-admin {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 14px;
-  border: 1px solid var(--accent-gold);
-  border-radius: var(--radius-full);
-  background: #103d30;
+  padding: 4px 14px 4px 5px;
+  border: 1.5px solid #d1ab55;
+  border-radius: 9999px;
+  background: #0e382b;
   color: white;
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  text-decoration: none;
+  box-shadow: 0 2px 8px rgba(14, 56, 43, 0.2);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
 }
 
 .admin-hub:hover,
 .prime-admin:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(16, 61, 48, 0.2);
+  box-shadow: 0 4px 14px rgba(14, 56, 43, 0.3);
+  border-color: #f0cb6e;
 }
 
 .admin-avatar {
@@ -420,53 +466,63 @@ svg {
   width: 28px;
   height: 28px;
   place-items: center;
-  border-radius: var(--radius-full);
-  background: var(--accent-gold);
-  color: white;
+  border-radius: 9999px;
+  background: #cba34e;
+  color: #0e382b;
   font-size: 13px;
   font-weight: 900;
+  flex-shrink: 0;
 }
 
 .admin-info,
 .admin-label {
-  display: grid;
-  gap: 1px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  line-height: 1.1;
 }
 
 .admin-info small,
 .admin-label small {
-  color: #e4c56d;
+  color: #e5c468;
   font-size: 8px;
   font-weight: 900;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
 }
 
 .admin-info strong,
 .admin-label strong {
-  max-width: 85px;
+  color: #ffffff;
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  max-width: 90px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 11px;
 }
 
+/* Logout icon button */
 .logout-button,
 .prime-logout {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 8px;
+  padding: 7px;
   border: none;
   background: transparent;
-  color: var(--text-muted);
+  color: #788981;
   cursor: pointer;
-  border-radius: var(--radius-md);
-  transition: color var(--transition-fast);
+  border-radius: 9999px;
+  transition: all var(--transition-fast);
 }
 
 .logout-button:hover,
 .prime-logout:hover {
   color: var(--color-error);
+  background: rgba(209, 67, 67, 0.08);
+  transform: translateX(1px);
 }
 
 /* Mobile navbar toggle */
@@ -1256,7 +1312,8 @@ button:disabled,
 
   .prime-header-inner > .prime-search,
   .prime-header-inner > .prime-navigation,
-  .prime-header-inner > .prime-header-actions {
+  .prime-header-inner > .prime-header-actions,
+  .prime-header-cluster {
     display: none !important;
   }
 
@@ -5163,6 +5220,176 @@ button:disabled,
     gap: 8px;
   }
 }
+
+/* ==============================================================================
+   PRIME ENTERPRISE UI/UX POLISH & MODERN DESIGN ELEVATION
+   Zero new files added — All refinements unified cleanly in globals.css
+   ============================================================================== */
+
+/* 1. Global Elevation & Smooth Focus Rings */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  transition: outline-offset var(--transition-fast);
+}
+
+/* 2. Glassmorphism & Header Elevation */
+.prime-header {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 1px 3px rgba(16, 61, 48, 0.04), 0 1px 2px rgba(16, 61, 48, 0.02);
+}
+
+[data-theme="dark"] .prime-header,
+.dark .prime-header {
+  background: rgba(20, 34, 28, 0.94);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+/* 3. Button Micro-interactions & Tactile Feedback */
+.primary-button,
+.btn-primary {
+  box-shadow: 0 2px 4px rgba(23, 107, 80, 0.12), 0 1px 2px rgba(23, 107, 80, 0.08);
+}
+
+.primary-button:hover,
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(23, 107, 80, 0.22);
+}
+
+.secondary-button:hover,
+.btn-secondary:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-subtle);
+}
+
+/* 4. Hero Visual Polish & Modern Gradient Accent */
+.hero {
+  position: relative;
+  overflow: hidden;
+}
+
+.hero::before {
+  content: "";
+  position: absolute;
+  top: -20%;
+  right: -10%;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(23, 107, 80, 0.06) 0%, rgba(198, 166, 107, 0.04) 50%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 1;
+}
+
+.hero-image img {
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-elevated);
+  transition: transform var(--transition-normal), box-shadow var(--transition-normal);
+}
+
+.hero-image:hover img {
+  transform: scale(1.015);
+  box-shadow: 0 20px 40px rgba(16, 61, 48, 0.14);
+}
+
+/* 5. Product & Category Card Aesthetics */
+.product-card,
+.category-card {
+  transition: transform var(--transition-normal), box-shadow var(--transition-normal), border-color var(--transition-normal);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+}
+
+.product-card:hover,
+.category-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(16, 61, 48, 0.09);
+  border-color: rgba(23, 107, 80, 0.25);
+}
+
+/* 6. Admin KPI Metric Cards & Dashboard Visuals */
+.admin-stat-card {
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-subtle);
+}
+
+.admin-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card);
+  border-color: rgba(23, 107, 80, 0.2);
+}
+
+/* 7. Enhanced Data Tables & Scroll Indicators */
+.admin-table-container,
+.table-responsive-container {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-subtle);
+  overflow: hidden;
+}
+
+table tr {
+  transition: background-color var(--transition-fast);
+}
+
+table tbody tr:hover {
+  background-color: var(--bg-surface-subtle);
+}
+
+/* 8. Modal & Confirm Dialog Elevation */
+.fixed.inset-0 .bg-white,
+.fixed.inset-0 .bg-card,
+.admin-modal-content {
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-dialog);
+  border: 1px solid var(--border-subtle);
+}
+
+/* 9. Interactive Badge Styling & Status Pills */
+.status-badge,
+.badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+/* 10. Smooth Custom Scrollbars for Data Grids & Sidebar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}
+
 
 
 

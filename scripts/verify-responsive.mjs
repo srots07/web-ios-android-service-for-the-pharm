@@ -7,7 +7,7 @@ const PORT = 9222;
 const BASE_URL = process.env.BASE_URL || "http://localhost:3000";
 const API_URL = process.env.API_URL || "http://127.0.0.1:8000";
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@primebyactivist.com";
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "PrimeAdmin@2026!";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "DevAdminPassword@2026!";
 
 function getBrowserExecutablePath() {
   if (process.env.CHROME_PATH && fs.existsSync(process.env.CHROME_PATH)) {
@@ -93,7 +93,7 @@ class CDPClient {
     await this.send('Emulation.setDeviceMetricsOverride', {
       width,
       height,
-      deviceScaleFactor: 2,
+      deviceScaleFactor: 1,
       mobile: isMobile,
     });
     await this.send('Emulation.setVisibleSize', { width, height }).catch(() => {});
@@ -140,8 +140,12 @@ async function runVerification() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD })
     }).then(r => r.json());
-    adminToken = authRes.access_token;
-    console.log("Successfully retrieved administrator token:", adminToken.substring(0, 25) + "...");
+    adminToken = authRes.access_token || "";
+    if (adminToken) {
+      console.log("Successfully retrieved administrator token: [REDACTED_FOR_SECURITY]");
+    } else {
+      console.warn("Backend auth response did not include access_token");
+    }
   } catch (err) {
     console.error("Failed to fetch token from backend:", err.message);
   }
@@ -178,22 +182,36 @@ async function runVerification() {
 
     console.log("Connected to Chrome via CDP.");
 
-    // Perform authenticated login via the Next.js API proxy (which receives the HttpOnly cookie)
+    // Perform authenticated login directly by filling the UI login form to ensure full authStore & cookie synchronization
     await cdp.navigate(`${BASE_URL}/login`);
-    await new Promise(r => setTimeout(r, 600));
+    await new Promise(r => setTimeout(r, 1000));
 
-    const loginRes = await cdp.evaluate(`
+    const formLoginResult = await cdp.evaluate(`
       (async () => {
-        const res = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: '${ADMIN_EMAIL}', password: '${ADMIN_PASSWORD}' })
-        });
-        const data = await res.json();
-        return { status: res.status, user: data.user?.role };
+        const emailInput = document.querySelector('input[type="email"]');
+        const passInput = document.querySelector('input[type="password"]');
+        const submitBtn = document.querySelector('button[type="submit"]');
+        if (!emailInput || !passInput || !submitBtn) {
+          return { error: 'Login form elements not found' };
+        }
+        
+        // Use native value setters so React synthetic events update state
+        const nativeInputSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+        nativeInputSetter.call(emailInput, '${ADMIN_EMAIL}');
+        emailInput.dispatchEvent(new Event('input', { bubbles: true }));
+        emailInput.dispatchEvent(new Event('change', { bubbles: true }));
+
+        nativeInputSetter.call(passInput, '${ADMIN_PASSWORD}');
+        passInput.dispatchEvent(new Event('input', { bubbles: true }));
+        passInput.dispatchEvent(new Event('change', { bubbles: true }));
+
+        submitBtn.click();
+        return { submitted: true };
       })()
     `);
-    console.log("In-browser authenticated login result:", loginRes);
+    console.log("In-browser form login submission:", formLoginResult);
+    // Wait for authStore to complete login and navigate to /admin
+    await new Promise(r => setTimeout(r, 2000));
 
     // Step 2: Test All 10 Viewports for Public & Admin Routes
     const publicRoutes = ["/", "/products", "/contact", "/login"];
@@ -210,10 +228,12 @@ async function runVerification() {
         const pageMetrics = await cdp.evaluate(`
           (() => {
             const scrollWidth = document.documentElement.scrollWidth;
+            const clientWidth = document.documentElement.clientWidth;
             const winWidth = window.innerWidth;
             const hasHorizontalOverflow = scrollWidth > winWidth + 1;
             return {
               scrollWidth,
+              clientWidth,
               winWidth,
               hasHorizontalOverflow,
             };
@@ -226,10 +246,11 @@ async function runVerification() {
           route,
           status,
           scrollWidth: pageMetrics.scrollWidth,
+          clientWidth: pageMetrics.clientWidth,
           winWidth: pageMetrics.winWidth,
         });
 
-        console.log(`  [${status}] ${route}: no overflow (${pageMetrics.scrollWidth} <= ${pageMetrics.winWidth})`);
+        console.log(`  [${status}] ${route}: no overflow (scroll: ${pageMetrics.scrollWidth}, client: ${pageMetrics.clientWidth}, win: ${pageMetrics.winWidth})`);
       }
 
       // Check Admin Routes
@@ -238,10 +259,12 @@ async function runVerification() {
         const adminMetrics = await cdp.evaluate(`
           (() => {
             const scrollWidth = document.documentElement.scrollWidth;
+            const clientWidth = document.documentElement.clientWidth;
             const winWidth = window.innerWidth;
             const hasHorizontalOverflow = scrollWidth > winWidth + 1;
             return {
               scrollWidth,
+              clientWidth,
               winWidth,
               hasHorizontalOverflow,
             };
@@ -254,10 +277,11 @@ async function runVerification() {
           route: `Admin ${route}`,
           status,
           scrollWidth: adminMetrics.scrollWidth,
+          clientWidth: adminMetrics.clientWidth,
           winWidth: adminMetrics.winWidth,
         });
 
-        console.log(`  [${status}] Admin ${route}: no overflow (${adminMetrics.scrollWidth} <= ${adminMetrics.winWidth})`);
+        console.log(`  [${status}] Admin ${route}: no overflow (scroll: ${adminMetrics.scrollWidth}, client: ${adminMetrics.clientWidth}, win: ${adminMetrics.winWidth})`);
       }
     }
 

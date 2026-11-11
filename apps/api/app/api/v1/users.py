@@ -64,6 +64,8 @@ class UpdateUserRequest(BaseModel):
     role: str | None = Field(None, pattern="^(admin|staff|customer)$")
     role_ids: list[str] | None = None
 
+    model_config = ConfigDict(extra="forbid")
+
 
 class UserStatusResponse(BaseModel):
     id: str

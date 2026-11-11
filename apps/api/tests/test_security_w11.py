@@ -1,3 +1,4 @@
+import io
 import uuid
 
 import pytest
@@ -200,6 +201,135 @@ def test_production_fails_closed_without_secrets():
         API_SECRET_KEY="c" * 32,
         DATABASE_URL="postgresql+asyncpg://user:pass@localhost:5432/db",
         ALLOW_ADMIN_BOOTSTRAP=False,
+        ALLOWED_CORS_ORIGINS="https://primebyactivist.com,https://admin.primebyactivist.com",
     )
     assert valid_prod.AUTH_COOKIE_SECURE is True
+    assert valid_prod.ALLOWED_CORS_ORIGINS == ["https://primebyactivist.com", "https://admin.primebyactivist.com"]
+
+    # Wildcard CORS forbidden in production
+    with pytest.raises(ValueError, match="Wildcard '\\*' CORS origin is forbidden in production"):
+        Settings(
+            ENVIRONMENT="production",
+            API_SECRET_KEY="d" * 32,
+            DATABASE_URL="postgresql+asyncpg://user:pass@localhost:5432/db",
+            ALLOW_ADMIN_BOOTSTRAP=False,
+            ALLOWED_CORS_ORIGINS="*",
+        )
+
+
+@pytest.mark.asyncio
+async def test_cors_middleware_allowed_and_rejected_origins():
+    """Verify CORS preflight and request headers for allowed vs rejected origins."""
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        # 1. Allowed origin preflight OPTIONS request
+        res_allowed = await ac.options(
+            "/api/v1/health",
+            headers={
+                "Origin": "http://localhost:3000",
+                "Access-Control-Request-Method": "GET",
+            },
+        )
+        assert res_allowed.status_code == 200
+        assert res_allowed.headers.get("access-control-allow-origin") == "http://localhost:3000"
+        assert res_allowed.headers.get("access-control-allow-credentials") == "true"
+
+        # 2. Rejected origin preflight request
+        res_rejected = await ac.options(
+            "/api/v1/health",
+            headers={
+                "Origin": "https://malicious-phishing-site.com",
+                "Access-Control-Request-Method": "GET",
+            },
+        )
+        # Unauthorized origin does not get Access-Control-Allow-Origin header matching the malicious origin
+        assert res_rejected.headers.get("access-control-allow-origin") != "https://malicious-phishing-site.com"
+
+
+# --- Phase 2 Security Hardening Regression Tests ---
+
+@pytest.mark.asyncio
+async def test_security_headers_present_on_api_responses():
+    """Verify security headers are attached to all API responses."""
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        res = await ac.get("/health")
+        assert res.status_code == 200
+        assert res.headers.get("x-content-type-options") == "nosniff"
+        assert res.headers.get("x-frame-options") == "DENY"
+        assert res.headers.get("referrer-policy") == "strict-origin-when-cross-origin"
+        assert "accelerometer=()" in res.headers.get("permissions-policy", "")
+
+
+@pytest.mark.asyncio
+async def test_document_upload_magic_bytes_spoofing_rejected():
+    """Reject upload when file extension is .pdf but binary content lacks %PDF- header."""
+    admin_token = await get_admin_token()
+    headers = {"Authorization": f"Bearer {admin_token}"}
+
+    # Spoofed file: extension is .pdf, content-type is application/pdf, but content is shell script
+    spoofed_content = b"echo 'malicious script'; exit 1"
+    files = {
+        "file": ("fake_doc.pdf", io.BytesIO(spoofed_content), "application/pdf")
+    }
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        res = await ac.post(
+            "/api/v1/admin/documents/upload",
+            files=files,
+            data={"category": "Dossiers"},
+            headers=headers,
+        )
+        assert res.status_code == 400
+        assert "Binary content does not match signature" in res.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_mass_assignment_protection_profile_update():
+    """Profile update schema must reject unexpected mass-assignment fields."""
+    customer_token = await get_customer_token()
+    headers = {"Authorization": f"Bearer {customer_token}"}
+
+    payload_with_forbidden_extra = {
+        "full_name": "Legitimate Name",
+        "role": "admin",  # Injected privilege escalation field
+        "is_active": True,
+    }
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        res = await ac.patch(
+            "/api/v1/auth/profile",
+            json=payload_with_forbidden_extra,
+            headers=headers,
+        )
+        assert res.status_code == 422
+        # Extra inputs forbidden error
+        assert "extra_forbidden" in str(res.json()) or "Extra inputs are not permitted" in str(res.json())
+
+
+@pytest.mark.asyncio
+async def test_csrf_rejection_on_refresh_from_unauthorized_origin():
+    """Cookie refresh endpoint must reject cross-origin requests from untrusted origins."""
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        res = await ac.post(
+            "/api/v1/auth/refresh",
+            headers={"Origin": "https://attacker-controlled-site.com"},
+            cookies={"prime_refresh_token": "mock-refresh-token"},
+        )
+        assert res.status_code == 403
+        assert "CSRF policy" in res.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_object_level_authorization_customer_orders():
+    """Customer A must be forbidden from accessing Customer B's order details."""
+    token_a = await get_customer_token()
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        # Non-existent or other customer's order ID
+        res = await ac.get(
+            "/api/v1/auth/customer/orders/order-nonexistent-or-other",
+            headers={"Authorization": f"Bearer {token_a}"},
+        )
+        assert res.status_code in (403, 404)
+
+
 

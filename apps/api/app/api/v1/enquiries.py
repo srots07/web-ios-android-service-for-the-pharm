@@ -7,6 +7,7 @@ from sqlalchemy import desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies.auth import require_permission
+from app.core.security.rate_limiter import rate_limit
 from app.database.models import AuditEvent, Inquiry, User, utc_now
 from app.database.session import get_db
 
@@ -71,7 +72,11 @@ class UpdateEnquiryRequest(BaseModel):
 
 # --- Public Submission Endpoint ---
 
-@router.post("/enquiries", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/enquiries",
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(rate_limit(times=15, seconds=60, scope="enquiries"))],
+)
 async def submit_public_enquiry(
     payload: InquiryCreateRequest,
     db: AsyncSession = Depends(get_db),
@@ -160,7 +165,7 @@ async def list_admin_enquiries(
     if admin_ids:
         admins_stmt = select(User.id, User.full_name).where(User.id.in_(admin_ids))
         admins_res = await db.execute(admins_stmt)
-        admin_name_map = dict(admins_res.all())
+        admin_name_map = {row.id: row.full_name for row in admins_res.all()}
 
     items = []
     for inq in inquiries:

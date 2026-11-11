@@ -13,11 +13,15 @@ class UserRegisterRequest(BaseModel):
     business_address: str | None = None
     country: str | None = None
 
+    model_config = ConfigDict(extra="forbid")
+
 
 class UserLoginRequest(BaseModel):
     email: EmailStr
     password: str
     remember_me: bool = Field(default=False)
+
+    model_config = ConfigDict(extra="forbid")
 
 
 class UserProfileUpdateRequest(BaseModel):
@@ -26,6 +30,8 @@ class UserProfileUpdateRequest(BaseModel):
     country: str | None = Field(None, max_length=100)
     company_name: str | None = Field(None, max_length=255)
     business_address: str | None = None
+
+    model_config = ConfigDict(extra="forbid")
 
 
 class PasswordChangeRequest(BaseModel):

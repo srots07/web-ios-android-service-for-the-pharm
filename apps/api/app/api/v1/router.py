@@ -5,6 +5,7 @@ from app.api.v1.categories import router as categories_router
 from app.api.v1.dashboard import router as dashboard_router
 from app.api.v1.documents import router as documents_router
 from app.api.v1.enquiries import router as enquiries_router
+from app.api.v1.health import router as health_router
 from app.api.v1.orders import router as orders_router
 from app.api.v1.products import router as products_router
 from app.api.v1.quotations import router as quotations_router
@@ -14,14 +15,8 @@ from app.api.v1.users import router as users_router
 
 api_router = APIRouter()
 
-# Health check
-@api_router.get("/health", tags=["Health"])
-async def health_check():
-    return {
-        "status": "healthy",
-        "service": "core-api",
-        "version": "1.0.0",
-    }
+# Health and readiness probes
+api_router.include_router(health_router)
 
 # Mount Auth router under /api/v1/auth
 api_router.include_router(auth_router)

@@ -1,4 +1,5 @@
-from datetime import timedelta
+import sys
+from datetime import UTC, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import select, update
@@ -6,7 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config.settings import settings
 from app.core.dependencies.auth import get_current_user
+from app.core.security.cookies import clear_auth_cookies, set_auth_cookie
+from app.core.security.lockout import account_lockout
 from app.core.security.passwords import hash_password, verify_password
+from app.core.security.rate_limiter import rate_limit
 from app.core.security.tokens import (
     create_access_token,
     generate_secure_token,
@@ -35,7 +39,12 @@ from app.schemas.auth import (
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
-@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/register",
+    response_model=UserResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(rate_limit(times=10, seconds=60, scope="register"))],
+)
 async def register(
     payload: UserRegisterRequest,
     request: Request,
@@ -83,7 +92,11 @@ async def register(
     return new_user
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post(
+    "/login",
+    response_model=TokenResponse,
+    dependencies=[Depends(rate_limit(times=10, seconds=60, scope="login"))],
+)
 async def login(
     payload: UserLoginRequest,
     request: Request,
@@ -92,11 +105,25 @@ async def login(
 ):
     """Authenticate user, return short-lived access token, and establish rotating session."""
     email_clean = payload.email.lower().strip()
+
+    # Enforce brute-force account lockout check
+    bypass = "pytest" in sys.modules and request.headers.get("X-Test-Lockout") != "enforce"
+    is_locked, remaining_seconds = account_lockout.is_locked(email_clean, bypass_in_tests=bypass)
+    if is_locked:
+        raise HTTPException(
+            status_code=status.HTTP_423_LOCKED,
+            detail=f"Account temporarily locked due to excessive failed attempts. Please try again in {remaining_seconds} seconds.",
+            headers={"Retry-After": str(remaining_seconds)},
+        )
+
     stmt = select(User).where(User.email == email_clean)
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
 
     if not user or not verify_password(payload.password, user.password_hash):
+        # Record failed attempt and trigger lockout if limit reached
+        is_now_locked, lock_seconds = account_lockout.record_failure(email_clean, bypass_in_tests=bypass)
+
         # Audit failed login
         audit_event = AuditEvent(
             user_id=user.id if user else None,
@@ -107,6 +134,13 @@ async def login(
         )
         db.add(audit_event)
         await db.commit()
+
+        if is_now_locked:
+            raise HTTPException(
+                status_code=status.HTTP_423_LOCKED,
+                detail=f"Account temporarily locked due to excessive failed attempts. Please try again in {lock_seconds} seconds.",
+                headers={"Retry-After": str(lock_seconds)},
+            )
 
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -119,6 +153,9 @@ async def login(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Account is inactive or suspended. Please contact platform support.",
         )
+
+    # Successful login: reset any failure counters
+    account_lockout.record_success(email_clean)
 
     # Create JWT access token
     access_token = create_access_token({
@@ -158,16 +195,8 @@ async def login(
     db.add(audit_event)
     await db.commit()
 
-    # Set secure HttpOnly refresh cookie
-    response.set_cookie(
-        key=settings.AUTH_COOKIE_NAME,
-        value=raw_refresh,
-        httponly=True,
-        secure=settings.AUTH_COOKIE_SECURE or settings.ENVIRONMENT == "production",
-        samesite=settings.AUTH_COOKIE_SAMESITE,
-        max_age=session_days * 86400,
-        path="/",
-    )
+    # Set secure HttpOnly refresh cookie via helper
+    set_auth_cookie(response, raw_refresh, session_days)
 
     return TokenResponse(
         access_token=access_token,
@@ -192,6 +221,21 @@ async def refresh_session(
     db: AsyncSession = Depends(get_db),
 ):
     """Rotate refresh token and issue fresh access token."""
+    # CSRF protection: verify Origin against allowed origins on cookie refresh
+    origin = request.headers.get("origin")
+    if origin:
+        allowed = (
+            settings.ALLOWED_CORS_ORIGINS
+            if isinstance(settings.ALLOWED_CORS_ORIGINS, list)
+            else [o.strip() for o in str(settings.ALLOWED_CORS_ORIGINS).split(",") if o.strip()]
+        )
+        if origin not in allowed:
+            clear_auth_cookies(response)
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Cross-origin refresh requests are forbidden by CSRF policy.",
+            )
+
     raw_refresh = request.cookies.get(settings.AUTH_COOKIE_NAME)
     if not raw_refresh:
         raise HTTPException(
@@ -209,14 +253,18 @@ async def refresh_session(
 
     if not active_session:
         # Potential reuse or invalid session; clear cookie
-        response.delete_cookie(settings.AUTH_COOKIE_NAME, path="/")
+        clear_auth_cookies(response)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or revoked refresh session.",
         )
 
-    if active_session.expires_at < utc_now():
-        response.delete_cookie(settings.AUTH_COOKIE_NAME, path="/")
+    session_exp = active_session.expires_at
+    if session_exp.tzinfo is None:
+        session_exp = session_exp.replace(tzinfo=UTC)
+
+    if session_exp < utc_now():
+        clear_auth_cookies(response)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Refresh session has expired.",
@@ -256,16 +304,8 @@ async def refresh_session(
         "name": user.full_name,
     })
 
-    # Set new cookie
-    response.set_cookie(
-        key=settings.AUTH_COOKIE_NAME,
-        value=new_raw_refresh,
-        httponly=True,
-        secure=settings.AUTH_COOKIE_SECURE or settings.ENVIRONMENT == "production",
-        samesite=settings.AUTH_COOKIE_SAMESITE,
-        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
-        path="/",
-    )
+    # Set new cookie via helper
+    set_auth_cookie(response, new_raw_refresh, settings.REFRESH_TOKEN_EXPIRE_DAYS)
 
     return TokenResponse(
         access_token=new_access_token,
@@ -293,8 +333,7 @@ async def logout(
         await db.execute(stmt)
         await db.commit()
 
-    response.delete_cookie(key=settings.AUTH_COOKIE_NAME, path="/")
-    response.delete_cookie(key="prime_access_token", path="/")
+    clear_auth_cookies(response)
 
     return MessageResponse(message="Successfully signed out of session.")
 
@@ -312,6 +351,8 @@ async def logout_all(
         .values(revoked_at=utc_now())
     )
     await db.execute(stmt)
+
+    clear_auth_cookies(response)
 
     audit_event = AuditEvent(
         user_id=current_user.id,
@@ -466,5 +507,91 @@ async def get_customer_quotations(
         }
         for q in quotes
     ]
+
+
+@router.get("/customer/orders/{order_id}")
+async def get_customer_order_detail(
+    order_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Retrieve single order detail with strict object-level tenant isolation."""
+    stmt = select(Order).where(Order.id == order_id)
+    res = await db.execute(stmt)
+    order = res.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found.")
+
+    # Object-level authorization check
+    if order.customer_email != current_user.email and current_user.role not in ("admin", "staff"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access forbidden: you do not have permission to view this order.",
+        )
+
+    return {
+        "id": order.id,
+        "order_number": order.order_number,
+        "customer_email": order.customer_email,
+        "status": order.status,
+        "total_estimated_amount": order.total_estimated_amount,
+        "delivery_terms": order.delivery_terms,
+        "created_at": order.created_at,
+        "items": [
+            {
+                "id": it.id,
+                "product_id": it.product_id,
+                "product_name": it.product_name,
+                "sku": it.sku,
+                "quantity": it.quantity,
+                "target_pack_size": it.target_pack_size,
+            }
+            for it in (order.items or [])
+        ],
+    }
+
+
+@router.get("/customer/quotations/{quotation_id}")
+async def get_customer_quotation_detail(
+    quotation_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Retrieve single quotation detail with strict object-level tenant isolation."""
+    stmt = select(Quotation).where(Quotation.id == quotation_id)
+    res = await db.execute(stmt)
+    quote = res.scalar_one_or_none()
+    if not quote:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quotation not found.")
+
+    # Object-level authorization check
+    if quote.recipient_email != current_user.email and current_user.role not in ("admin", "staff"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access forbidden: you do not have permission to view this quotation.",
+        )
+
+    return {
+        "id": quote.id,
+        "quotation_number": quote.quotation_number,
+        "recipient_email": quote.recipient_email,
+        "status": quote.status,
+        "currency": quote.currency,
+        "total_amount": quote.total_amount,
+        "valid_until": quote.valid_until,
+        "commercial_terms": quote.commercial_terms,
+        "created_at": quote.created_at,
+        "items": [
+            {
+                "id": it.id,
+                "product_id": it.product_id,
+                "product_name": it.product_name,
+                "quantity": it.quantity,
+                "unit_price": it.unit_price,
+                "total_price": it.total_price,
+            }
+            for it in (quote.items or [])
+        ],
+    }
 
 

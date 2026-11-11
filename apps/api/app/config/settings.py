@@ -41,6 +41,12 @@ class Settings(BaseSettings):
     AUTH_COOKIE_SECURE: bool = False
     AUTH_COOKIE_SAMESITE: str = "lax"
 
+    # CORS Configuration
+    ALLOWED_CORS_ORIGINS: str | list[str] = os.getenv(
+        "ALLOWED_CORS_ORIGINS",
+        "http://localhost:3000,http://127.0.0.1:3000,http://localhost:8000",
+    )
+
     # Seed / Bootstrap Administrator (Explicitly separated between dev/test and production)
     ALLOW_ADMIN_BOOTSTRAP: bool = False
     DEFAULT_ADMIN_EMAIL: str = "admin@primebyactivist.com"
@@ -86,6 +92,17 @@ class Settings(BaseSettings):
             # 4. Enforce secure cookies in production
             self.AUTH_COOKIE_SECURE = True
 
+            # 5. Normalize and validate CORS origins in production
+            if isinstance(self.ALLOWED_CORS_ORIGINS, str):
+                origins = [orig.strip() for orig in self.ALLOWED_CORS_ORIGINS.split(",") if orig.strip()]
+            else:
+                origins = [orig.strip() for orig in self.ALLOWED_CORS_ORIGINS if orig.strip()]
+
+            # Production must not use wildcard '*' with allow_credentials=True
+            if "*" in origins:
+                raise ValueError("CRITICAL SECURITY ERROR: Wildcard '*' CORS origin is forbidden in production with credentials.")
+            self.ALLOWED_CORS_ORIGINS = origins
+
         else:
             # Development / Test fallback
             if not self.API_SECRET_KEY:
@@ -93,6 +110,9 @@ class Settings(BaseSettings):
             if not self.DEFAULT_ADMIN_PASSWORD:
                 self.DEFAULT_ADMIN_PASSWORD = "DevAdminPassword@2026!"
             self.ALLOW_ADMIN_BOOTSTRAP = True
+
+            if isinstance(self.ALLOWED_CORS_ORIGINS, str):
+                self.ALLOWED_CORS_ORIGINS = [orig.strip() for orig in self.ALLOWED_CORS_ORIGINS.split(",") if orig.strip()]
 
         return self
 

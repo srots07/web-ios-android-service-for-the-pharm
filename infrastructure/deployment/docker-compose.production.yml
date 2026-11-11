@@ -1,0 +1,192 @@
+# ==============================================================================
+# PRIME by Activist - PRODUCTION DEPLOYMENT DOCKER COMPOSE STACK
+#
+# Usage:
+#   docker compose -f infrastructure/deployment/docker-compose.production.yml --env-file infrastructure/deployment/deployment.env up -d
+# ==============================================================================
+
+services:
+  # ==========================================
+  # 1. DATABASE: PostgreSQL 16
+  # ==========================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: prime-production-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_production_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - internal-tier
+    deploy:
+      resources:
+        limits:
+          memory: 2048M
+        reservations:
+          memory: 512M
+
+  # ==========================================
+  # 2. IN-MEMORY CACHE & EVENT BROKER: Redis 7
+  # ==========================================
+  redis:
+    image: redis:7-alpine
+    container_name: prime-production-redis
+    restart: always
+    command: >
+      redis-server
+      --requirepass "${REDIS_PASSWORD}"
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+    volumes:
+      - redis_production_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - internal-tier
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ==========================================
+  # 3. BACKEND API: FastAPI Core Engine
+  # ==========================================
+  api:
+    build:
+      context: ../../apps/api
+      dockerfile: ../../infrastructure/docker/api.Dockerfile
+    image: prime-by-activist/core-api:latest
+    container_name: prime-production-api
+    restart: always
+    environment:
+      - ENVIRONMENT=production
+      - API_SECRET_KEY=${API_SECRET_KEY}
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - ALLOW_ADMIN_BOOTSTRAP=${ALLOW_ADMIN_BOOTSTRAP:-false}
+      - DEFAULT_ADMIN_EMAIL=${BOOTSTRAP_ADMIN_EMAIL}
+      - DEFAULT_ADMIN_PASSWORD=${BOOTSTRAP_ADMIN_PASSWORD}
+      - AUTH_COOKIE_SECURE=true
+      - AUTH_COOKIE_SAMESITE=lax
+    volumes:
+      - storage_production_data:/app/storage/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8000/api/v1/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    networks:
+      - internal-tier
+      - app-tier
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+
+  # ==========================================
+  # 4. FRONTEND: Next.js 15 Standalone
+  # ==========================================
+  web:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/web.Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: /api/v1
+        NEXT_PUBLIC_APP_NAME: "PRIME by Activist"
+    image: prime-by-activist/web-frontend:latest
+    container_name: prime-production-web
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    networks:
+      - app-tier
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+
+  # ==========================================
+  # 5. REVERSE PROXY & TLS TERMINATOR: Nginx
+  # ==========================================
+  reverse-proxy:
+    image: nginx:1.25-alpine
+    container_name: prime-production-proxy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ../nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - certs_data:/etc/nginx/ssl:ro
+      - certbot_challenge:/var/www/certbot:ro
+    depends_on:
+      web:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:80/ || exit 0"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks:
+      - app-tier
+      - public-tier
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+networks:
+  public-tier:
+    name: prime-public-tier
+    driver: bridge
+  app-tier:
+    name: prime-app-tier
+    driver: bridge
+  internal-tier:
+    name: prime-internal-tier
+    internal: true # Air-gapped from internet, no direct external routes
+
+volumes:
+  postgres_production_data:
+    name: prime-postgres-production-data
+  redis_production_data:
+    name: prime-redis-production-data
+  storage_production_data:
+    name: prime-storage-production-data
+  certs_data:
+    name: prime-certs-data
+  certbot_challenge:
+    name: prime-certbot-challenge
+
