@@ -1,18 +1,27 @@
 import os
-import uuid
 import re
+import uuid
+from datetime import datetime
 from pathlib import Path
-from typing import Optional, List
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query, status
+
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    UploadFile,
+    status,
+)
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
-from datetime import datetime
 
+from app.core.dependencies.auth import require_permission
+from app.database.models import AuditEvent, UploadedFileRecord, User, utc_now
 from app.database.session import get_db
-from app.database.models import UploadedFileRecord, User, AuditEvent, utc_now
-from app.core.dependencies.auth import require_admin_user, require_permission
 
 router = APIRouter(prefix="/admin/documents", tags=["Admin Documents & File Storage"])
 
@@ -44,7 +53,7 @@ class UploadedFileResponse(BaseModel):
 
 
 class PaginatedFilesResponse(BaseModel):
-    items: List[UploadedFileResponse]
+    items: list[UploadedFileResponse]
     total: int
     page: int
     limit: int
@@ -173,7 +182,7 @@ async def download_document(
 async def list_uploaded_documents(
     page: int = Query(1, ge=1),
     limit: int = Query(10, ge=1, le=100),
-    category: Optional[str] = Query(None),
+    category: str | None = Query(None),
     current_user: User = Depends(require_permission("products.read")),
     db: AsyncSession = Depends(get_db),
 ):

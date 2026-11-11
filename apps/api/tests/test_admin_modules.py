@@ -1,10 +1,12 @@
+import uuid
+
 import pytest
 import pytest_asyncio
-import uuid
-from httpx import AsyncClient, ASGITransport
-from app.main import app
-from app.database.session import init_db
+from httpx import ASGITransport, AsyncClient
+
 from app.config.settings import settings
+from app.database.session import init_db
+from app.main import app
 
 
 @pytest_asyncio.fixture(autouse=True)
@@ -205,6 +207,27 @@ async def test_admin_orders_and_status_transition():
     token = await get_admin_token()
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        # Create a fresh order to ensure deterministic status transitions
+        new_order = await ac.post(
+            "/api/v1/admin/orders",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "customer_name": "Test Hospital Authority",
+                "customer_email": "test_orders@hospital.org",
+                "country": "Tanzania",
+                "items": [
+                    {
+                        "product_id": "test-p1",
+                        "product_name": "Daily Multivitamin Plus",
+                        "sku": "TAB-001",
+                        "quantity": 20,
+                    }
+                ],
+            },
+        )
+        assert new_order.status_code == 201
+        test_order_id = new_order.json()["id"]
+
         # List orders
         orders_res = await ac.get(
             "/api/v1/admin/orders",
@@ -213,7 +236,6 @@ async def test_admin_orders_and_status_transition():
         assert orders_res.status_code == 200
         orders_data = orders_res.json()
         assert orders_data["total"] >= 1
-        test_order_id = orders_data["items"][0]["id"]
 
         # Get details
         detail_res = await ac.get(
@@ -223,7 +245,14 @@ async def test_admin_orders_and_status_transition():
         assert detail_res.status_code == 200
         assert len(detail_res.json()["items"]) >= 1
 
-        # Transition status
+        # Transition status: Submitted -> In Review
+        await ac.patch(
+            f"/api/v1/admin/orders/{test_order_id}/status",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"status": "In Review"},
+        )
+
+        # Transition status: In Review -> Quotation Sent
         status_res = await ac.patch(
             f"/api/v1/admin/orders/{test_order_id}/status",
             headers={"Authorization": f"Bearer {token}"},

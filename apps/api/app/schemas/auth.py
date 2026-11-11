@@ -1,6 +1,6 @@
 from datetime import datetime
-from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, EmailStr, Field, ConfigDict
+
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class UserRegisterRequest(BaseModel):
@@ -8,10 +8,10 @@ class UserRegisterRequest(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=8, max_length=128)
     account_type: str = Field(default="Individual Customer")
-    phone: Optional[str] = None
-    company_name: Optional[str] = None
-    business_address: Optional[str] = None
-    country: Optional[str] = None
+    phone: str | None = None
+    company_name: str | None = None
+    business_address: str | None = None
+    country: str | None = None
 
 
 class UserLoginRequest(BaseModel):
@@ -21,11 +21,11 @@ class UserLoginRequest(BaseModel):
 
 
 class UserProfileUpdateRequest(BaseModel):
-    full_name: Optional[str] = Field(None, min_length=2, max_length=255)
-    phone: Optional[str] = Field(None, max_length=50)
-    country: Optional[str] = Field(None, max_length=100)
-    company_name: Optional[str] = Field(None, max_length=255)
-    business_address: Optional[str] = None
+    full_name: str | None = Field(None, min_length=2, max_length=255)
+    phone: str | None = Field(None, max_length=50)
+    country: str | None = Field(None, max_length=100)
+    company_name: str | None = Field(None, max_length=255)
+    business_address: str | None = None
 
 
 class PasswordChangeRequest(BaseModel):
@@ -39,14 +39,14 @@ class UserResponse(BaseModel):
     full_name: str
     role: str
     account_type: str
-    phone: Optional[str] = None
-    country: Optional[str] = None
-    company_name: Optional[str] = None
-    business_address: Optional[str] = None
+    phone: str | None = None
+    country: str | None = None
+    company_name: str | None = None
+    business_address: str | None = None
     is_active: bool
     is_verified: bool
     created_at: datetime
-    last_login_at: Optional[datetime] = None
+    last_login_at: datetime | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -94,7 +94,7 @@ class RecentInquiryItem(BaseModel):
     id: str
     reference_id: str
     full_name: str
-    organization: Optional[str] = None
+    organization: str | None = None
     enquiry_type: str
     subject: str
     status: str
@@ -122,6 +122,6 @@ class DashboardSummaryResponse(BaseModel):
     inquiries: InquiriesMetric
     orders: OrdersMetric
     quotations: QuotationsMetric
-    recent_activity: List[ActivityEventItem]
-    recent_inquiries: List[RecentInquiryItem]
+    recent_activity: list[ActivityEventItem]
+    recent_inquiries: list[RecentInquiryItem]
     system_timestamp: datetime

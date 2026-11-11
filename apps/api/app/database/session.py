@@ -1,13 +1,27 @@
-from typing import AsyncGenerator
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from collections.abc import AsyncGenerator
+
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import selectinload
+
 from app.config.settings import settings
-from app.database.models import (
-    Base, User, ProductItem, AuditEvent, Role, Permission, Order, OrderItem,
-    OrderStatusHistory, Quotation, QuotationItem, ProductCategory, UploadedFileRecord, PlatformSetting, utc_now
-)
 from app.core.security.passwords import hash_password
+from app.database.models import (
+    AuditEvent,
+    Base,
+    Order,
+    OrderItem,
+    OrderStatusHistory,
+    Permission,
+    PlatformSetting,
+    ProductCategory,
+    ProductItem,
+    Quotation,
+    QuotationItem,
+    Role,
+    User,
+    utc_now,
+)
 
 engine = create_async_engine(
     settings.DATABASE_URL,
@@ -90,7 +104,7 @@ async def init_db() -> None:
                 )
                 session.add(perm)
                 await session.flush()
-            perm_map[perm.slug] = perm
+            perm_map[str(perm.slug)] = perm
 
         # 2. Seed System Roles
         system_roles_def = [
@@ -116,7 +130,7 @@ async def init_db() -> None:
                 "name": "Commercial & Order Manager",
                 "slug": "order_manager",
                 "description": "Supervises procurement inquiries, quotations, batch pricing, and order fulfillment.",
-                "perms": [p for p in perm_map if p.startswith("orders.") or p.startswith("quotations.") or p in ("products.read", "users.read")],
+                "perms": [p for p in perm_map if p.startswith(("orders.", "quotations.")) or p in ("products.read", "users.read")],
             },
             {
                 "name": "Customer Support",
@@ -149,7 +163,7 @@ async def init_db() -> None:
             # Sync permissions to role
             target_perms = [perm_map[slug] for slug in r_def["perms"] if slug in perm_map]
             role.permissions = target_perms
-            role_map[role.slug] = role
+            role_map[str(role.slug)] = role
 
         # 3. Seed default administrative account if missing
         stmt = select(User).options(selectinload(User.roles)).where(User.email == settings.DEFAULT_ADMIN_EMAIL.lower())

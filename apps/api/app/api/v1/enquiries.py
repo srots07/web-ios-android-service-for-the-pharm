@@ -1,14 +1,14 @@
 import uuid
-from typing import Optional, List
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel, Field, ConfigDict
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_, desc
 
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import desc, func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.dependencies.auth import require_permission
+from app.database.models import AuditEvent, Inquiry, User, utc_now
 from app.database.session import get_db
-from app.database.models import Inquiry, User, AuditEvent, utc_now
-from app.core.dependencies.auth import require_admin_user, require_permission
 
 router = APIRouter(tags=["Enquiries"])
 
@@ -16,12 +16,12 @@ router = APIRouter(tags=["Enquiries"])
 # --- Schemas ---
 
 class InquiryCreateRequest(BaseModel):
-    reference_id: Optional[str] = Field(default=None, alias="referenceId")
+    reference_id: str | None = Field(default=None, alias="referenceId")
     full_name: str = Field(alias="fullName")
     email: str
-    phone: Optional[str] = None
+    phone: str | None = None
     country: str = "Tanzania"
-    organization: Optional[str] = None
+    organization: str | None = None
     enquiry_type: str = Field(default="General Enquiry", alias="enquiryType")
     subject: str = "General Commercial Inquiry"
     message: str
@@ -36,27 +36,27 @@ class InquiryListItem(BaseModel):
     reference_id: str
     full_name: str
     email: str
-    phone: Optional[str] = None
+    phone: str | None = None
     country: str
-    organization: Optional[str] = None
+    organization: str | None = None
     enquiry_type: str
     subject: str
     status: str
-    assigned_admin_id: Optional[str] = None
-    assigned_admin_name: Optional[str] = None
+    assigned_admin_id: str | None = None
+    assigned_admin_name: str | None = None
     created_at: datetime
-    updated_at: Optional[datetime] = None
+    updated_at: datetime | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class EnquiryDetailResponse(InquiryListItem):
     message: str
-    internal_notes: Optional[str] = None
+    internal_notes: str | None = None
 
 
 class PaginatedEnquiriesResponse(BaseModel):
-    items: List[InquiryListItem]
+    items: list[InquiryListItem]
     total: int
     page: int
     limit: int
@@ -64,9 +64,9 @@ class PaginatedEnquiriesResponse(BaseModel):
 
 
 class UpdateEnquiryRequest(BaseModel):
-    status: Optional[str] = Field(None, pattern="^(Pending|Reviewing|Quoted|Resolved|Closed)$")
-    assigned_admin_id: Optional[str] = None
-    internal_notes: Optional[str] = None
+    status: str | None = Field(None, pattern="^(Pending|Reviewing|Quoted|Resolved|Closed)$")
+    assigned_admin_id: str | None = None
+    internal_notes: str | None = None
 
 
 # --- Public Submission Endpoint ---
@@ -120,8 +120,8 @@ async def submit_public_enquiry(
 async def list_admin_enquiries(
     page: int = Query(1, ge=1),
     limit: int = Query(10, ge=1, le=100),
-    search: Optional[str] = Query(None),
-    status_filter: Optional[str] = Query(None, alias="status"),
+    search: str | None = Query(None),
+    status_filter: str | None = Query(None, alias="status"),
     current_admin: User = Depends(require_permission("inquiries.read")),
     db: AsyncSession = Depends(get_db),
 ):

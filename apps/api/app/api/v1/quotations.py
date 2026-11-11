@@ -1,14 +1,21 @@
-from typing import Optional, List
 import uuid
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel, Field, EmailStr, ConfigDict
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_
 
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from sqlalchemy import func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.dependencies.auth import require_permission
+from app.database.models import (
+    AuditEvent,
+    Order,
+    Quotation,
+    QuotationItem,
+    User,
+    utc_now,
+)
 from app.database.session import get_db
-from app.database.models import Quotation, QuotationItem, Order, User, AuditEvent, utc_now
-from app.core.dependencies.auth import require_admin_user, require_permission
 
 router = APIRouter(prefix="/admin/quotations", tags=["Admin Quotations"])
 
@@ -49,10 +56,10 @@ class QuotationItemSchema(BaseModel):
 class QuotationListItem(BaseModel):
     id: str
     quotation_number: str
-    order_id: Optional[str] = None
+    order_id: str | None = None
     recipient_name: str
     recipient_email: str
-    organization: Optional[str] = None
+    organization: str | None = None
     country: str
     status: str
     valid_until: datetime
@@ -67,25 +74,25 @@ class QuotationListItem(BaseModel):
 class QuotationDetailResponse(BaseModel):
     id: str
     quotation_number: str
-    order_id: Optional[str] = None
+    order_id: str | None = None
     recipient_name: str
     recipient_email: str
-    organization: Optional[str] = None
+    organization: str | None = None
     country: str
     status: str
     valid_until: datetime
     currency: str
     total_amount: float
-    commercial_terms: Optional[str] = None
-    created_by_user_id: Optional[str] = None
+    commercial_terms: str | None = None
+    created_by_user_id: str | None = None
     created_at: datetime
-    items: List[QuotationItemSchema] = []
+    items: list[QuotationItemSchema] = []
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class PaginatedQuotationsResponse(BaseModel):
-    items: List[QuotationListItem]
+    items: list[QuotationListItem]
     total: int
     page: int
     limit: int
@@ -93,15 +100,15 @@ class PaginatedQuotationsResponse(BaseModel):
 
 
 class CreateQuotationRequest(BaseModel):
-    order_id: Optional[str] = None
+    order_id: str | None = None
     recipient_name: str = Field(..., min_length=2, max_length=255)
     recipient_email: EmailStr
-    organization: Optional[str] = Field(None, max_length=255)
+    organization: str | None = Field(None, max_length=255)
     country: str = Field(..., min_length=2, max_length=100)
     valid_days: int = Field(30, ge=1, le=180)
     currency: str = Field("USD", min_length=3, max_length=10)
-    commercial_terms: Optional[str] = None
-    items: List[QuotationItemCreate] = Field(..., min_length=1)
+    commercial_terms: str | None = None
+    items: list[QuotationItemCreate] = Field(..., min_length=1)
 
 
 class UpdateQuotationStatusRequest(BaseModel):
@@ -109,14 +116,14 @@ class UpdateQuotationStatusRequest(BaseModel):
 
 
 class UpdateQuotationRequest(BaseModel):
-    recipient_name: Optional[str] = Field(None, min_length=2, max_length=255)
-    recipient_email: Optional[EmailStr] = None
-    organization: Optional[str] = Field(None, max_length=255)
-    country: Optional[str] = Field(None, min_length=2, max_length=100)
-    valid_days: Optional[int] = Field(None, ge=1, le=180)
-    currency: Optional[str] = Field(None, min_length=3, max_length=10)
-    commercial_terms: Optional[str] = None
-    items: Optional[List[QuotationItemCreate]] = None
+    recipient_name: str | None = Field(None, min_length=2, max_length=255)
+    recipient_email: EmailStr | None = None
+    organization: str | None = Field(None, max_length=255)
+    country: str | None = Field(None, min_length=2, max_length=100)
+    valid_days: int | None = Field(None, ge=1, le=180)
+    currency: str | None = Field(None, min_length=3, max_length=10)
+    commercial_terms: str | None = None
+    items: list[QuotationItemCreate] | None = None
 
 
 
@@ -126,9 +133,9 @@ class UpdateQuotationRequest(BaseModel):
 async def list_quotations(
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(10, ge=1, le=100, description="Items per page"),
-    search: Optional[str] = Query(None, description="Search quotation number, recipient name, email or org"),
-    status_filter: Optional[str] = Query(None, alias="status", description="Filter by quotation status"),
-    order_id: Optional[str] = Query(None, description="Filter by linked order ID"),
+    search: str | None = Query(None, description="Search quotation number, recipient name, email or org"),
+    status_filter: str | None = Query(None, alias="status", description="Filter by quotation status"),
+    order_id: str | None = Query(None, description="Filter by linked order ID"),
     current_user: User = Depends(require_permission("quotations.read")),
     db: AsyncSession = Depends(get_db),
 ):
@@ -233,7 +240,7 @@ async def create_quotation(
     """Generate a formal pharmaceutical commercial quotation with calculated batch pricing."""
     # Generate quotation number
     random_suffix = str(uuid.uuid4().int)[:4]
-    current_year = datetime.now().year
+    current_year = utc_now().year
     quotation_number = f"QT-{current_year}-{random_suffix}"
 
     valid_until = utc_now() + timedelta(days=payload.valid_days)
@@ -309,11 +316,11 @@ async def update_quotation_status(
     if not quotation:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quotation not found")
 
-    prev_status = quotation.status
+    prev_status = str(quotation.status)
     if prev_status == payload.status:
-        return await get_quotation_details(quotation_id=quotation.id, current_user=current_user, db=db)
+        return await get_quotation_details(quotation_id=str(quotation.id), current_user=current_user, db=db)
 
-    allowed_next = QUOTATION_STATE_TRANSITIONS.get(prev_status, [])
+    allowed_next: list[str] = QUOTATION_STATE_TRANSITIONS.get(prev_status, [])
     if payload.status not in allowed_next:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

@@ -1,14 +1,14 @@
-from typing import Optional, List
 import re
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel, Field, ConfigDict
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_
 from datetime import datetime
 
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.dependencies.auth import require_permission
+from app.database.models import AuditEvent, Permission, Role, User, user_roles, utc_now
 from app.database.session import get_db
-from app.database.models import Role, Permission, User, AuditEvent, user_roles, utc_now
-from app.core.dependencies.auth import require_admin_user, require_permission
 
 router = APIRouter(prefix="/admin", tags=["Roles & Permissions"])
 
@@ -32,7 +32,7 @@ class RoleDetailSchema(BaseModel):
     description: str
     is_system: bool
     created_at: datetime
-    permissions: List[PermissionSchema] = []
+    permissions: list[PermissionSchema] = []
     user_count: int = 0
 
     model_config = ConfigDict(from_attributes=True)
@@ -41,20 +41,20 @@ class RoleDetailSchema(BaseModel):
 class CreateRoleRequest(BaseModel):
     name: str = Field(..., min_length=2, max_length=100)
     description: str = Field(..., min_length=2, max_length=255)
-    permission_ids: List[str] = Field(default_factory=list)
+    permission_ids: list[str] = Field(default_factory=list)
 
 
 class UpdateRoleRequest(BaseModel):
-    name: Optional[str] = Field(None, min_length=2, max_length=100)
-    description: Optional[str] = Field(None, min_length=2, max_length=255)
-    permission_ids: Optional[List[str]] = None
+    name: str | None = Field(None, min_length=2, max_length=100)
+    description: str | None = Field(None, min_length=2, max_length=255)
+    permission_ids: list[str] | None = None
 
 
 # --- Endpoints ---
 
-@router.get("/permissions", response_model=List[PermissionSchema])
+@router.get("/permissions", response_model=list[PermissionSchema])
 async def list_permissions(
-    module: Optional[str] = Query(None, description="Filter by functional module"),
+    module: str | None = Query(None, description="Filter by functional module"),
     current_user: User = Depends(require_permission("roles.read")),
     db: AsyncSession = Depends(get_db),
 ):
@@ -70,7 +70,7 @@ async def list_permissions(
     return [PermissionSchema.model_validate(p) for p in permissions]
 
 
-@router.get("/roles", response_model=List[RoleDetailSchema])
+@router.get("/roles", response_model=list[RoleDetailSchema])
 async def list_roles(
     current_user: User = Depends(require_permission("roles.read")),
     db: AsyncSession = Depends(get_db),

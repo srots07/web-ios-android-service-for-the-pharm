@@ -1,23 +1,30 @@
-import uuid
-from datetime import datetime, timedelta, timezone
-from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import timedelta
+
+from fastapi import APIRouter, Depends
+from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, desc
+
+from app.core.dependencies.auth import require_admin_user
+from app.database.models import (
+    AuditEvent,
+    Inquiry,
+    Order,
+    ProductItem,
+    Quotation,
+    User,
+    utc_now,
+)
 from app.database.session import get_db
-from app.database.models import User, ProductItem, Inquiry, AuditEvent, Order, Quotation, utc_now
-from app.core.dependencies.auth import get_current_user, require_admin_user
 from app.schemas.auth import (
+    ActivityEventItem,
     DashboardSummaryResponse,
-    UsersMetric,
-    ProductsMetric,
     InquiriesMetric,
     OrdersMetric,
+    ProductsMetric,
     QuotationsMetric,
-    ActivityEventItem,
     RecentInquiryItem,
+    UsersMetric,
 )
-from pydantic import BaseModel, Field
 
 router = APIRouter(tags=["Admin Dashboard"])
 

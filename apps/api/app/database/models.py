@@ -1,19 +1,22 @@
 import uuid
-from datetime import datetime, timezone
-from sqlalchemy import (
-    Column,
-    String,
-    Boolean,
-    DateTime,
-    ForeignKey,
-    Text,
-    Integer,
-    Float,
-    Table,
-)
-from sqlalchemy.orm import declarative_base, relationship
+from datetime import UTC, datetime
 
-Base = declarative_base()
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Table,
+    Text,
+)
+from sqlalchemy.orm import DeclarativeBase, relationship
+
+
+class Base(DeclarativeBase):
+    pass
 
 
 def generate_uuid() -> str:
@@ -21,7 +24,7 @@ def generate_uuid() -> str:
 
 
 def utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 # Association table for Role <-> Permission

@@ -1,13 +1,13 @@
-from typing import Optional, List
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel, EmailStr, Field, ConfigDict
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_, update
 from datetime import datetime
 
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from sqlalchemy import func, or_, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.dependencies.auth import require_permission
+from app.database.models import AuditEvent, Role, User, UserSession, utc_now
 from app.database.session import get_db
-from app.database.models import User, UserSession, Role, AuditEvent, utc_now
-from app.core.dependencies.auth import require_admin_user, require_permission
 
 router = APIRouter(prefix="/admin/users", tags=["Admin Users"])
 
@@ -29,15 +29,15 @@ class UserListItem(BaseModel):
     full_name: str
     role: str
     account_type: str
-    phone: Optional[str] = None
-    country: Optional[str] = None
-    company_name: Optional[str] = None
-    business_address: Optional[str] = None
+    phone: str | None = None
+    country: str | None = None
+    company_name: str | None = None
+    business_address: str | None = None
     is_active: bool
     is_verified: bool
     created_at: datetime
-    last_login_at: Optional[datetime] = None
-    roles: List[RoleSummary] = []
+    last_login_at: datetime | None = None
+    roles: list[RoleSummary] = []
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -47,7 +47,7 @@ class UserDetailResponse(UserListItem):
 
 
 class PaginatedUsersResponse(BaseModel):
-    items: List[UserListItem]
+    items: list[UserListItem]
     total: int
     page: int
     limit: int
@@ -55,14 +55,14 @@ class PaginatedUsersResponse(BaseModel):
 
 
 class UpdateUserRequest(BaseModel):
-    full_name: Optional[str] = Field(None, min_length=2, max_length=255)
-    phone: Optional[str] = Field(None, max_length=50)
-    country: Optional[str] = Field(None, max_length=100)
-    company_name: Optional[str] = Field(None, max_length=255)
-    business_address: Optional[str] = None
-    account_type: Optional[str] = Field(None, max_length=100)
-    role: Optional[str] = Field(None, pattern="^(admin|staff|customer)$")
-    role_ids: Optional[List[str]] = None
+    full_name: str | None = Field(None, min_length=2, max_length=255)
+    phone: str | None = Field(None, max_length=50)
+    country: str | None = Field(None, max_length=100)
+    company_name: str | None = Field(None, max_length=255)
+    business_address: str | None = None
+    account_type: str | None = Field(None, max_length=100)
+    role: str | None = Field(None, pattern="^(admin|staff|customer)$")
+    role_ids: list[str] | None = None
 
 
 class UserStatusResponse(BaseModel):
@@ -78,10 +78,10 @@ class UserStatusResponse(BaseModel):
 async def list_users(
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(10, ge=1, le=100, description="Items per page"),
-    search: Optional[str] = Query(None, description="Search term for name or email"),
-    role: Optional[str] = Query(None, description="Filter by primary role (admin/staff/customer)"),
-    account_type: Optional[str] = Query(None, description="Filter by account type"),
-    status_filter: Optional[str] = Query(None, alias="status", description="Filter by status (active/suspended/all)"),
+    search: str | None = Query(None, description="Search term for name or email"),
+    role: str | None = Query(None, description="Filter by primary role (admin/staff/customer)"),
+    account_type: str | None = Query(None, description="Filter by account type"),
+    status_filter: str | None = Query(None, alias="status", description="Filter by status (active/suspended/all)"),
     current_user: User = Depends(require_permission("users.read")),
     db: AsyncSession = Depends(get_db),
 ):

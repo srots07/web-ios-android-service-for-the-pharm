@@ -1,14 +1,21 @@
-from typing import Optional, List
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel, Field, ConfigDict
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_
 from datetime import datetime
 
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.dependencies.auth import require_permission
+from app.database.models import (
+    AuditEvent,
+    Order,
+    OrderItem,
+    OrderStatusHistory,
+    User,
+    utc_now,
+)
 from app.database.session import get_db
-from app.database.models import Order, OrderItem, OrderStatusHistory, User, AuditEvent, utc_now
-from app.core.dependencies.auth import require_admin_user, require_permission
 
 router = APIRouter(prefix="/admin/orders", tags=["Admin Orders"])
 
@@ -43,7 +50,7 @@ class OrderItemSchema(BaseModel):
     product_name: str
     sku: str
     quantity: int
-    target_pack_size: Optional[str] = None
+    target_pack_size: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -53,7 +60,7 @@ class OrderStatusHistorySchema(BaseModel):
     previous_status: str
     new_status: str
     changed_by: str
-    reason: Optional[str] = None
+    reason: str | None = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -64,11 +71,11 @@ class OrderListItem(BaseModel):
     order_number: str
     customer_name: str
     customer_email: str
-    organization: Optional[str] = None
+    organization: str | None = None
     country: str
     status: str
-    assigned_admin_id: Optional[str] = None
-    total_estimated_amount: Optional[str] = None
+    assigned_admin_id: str | None = None
+    total_estimated_amount: str | None = None
     created_at: datetime
     updated_at: datetime
     items_count: int = 0
@@ -79,27 +86,27 @@ class OrderListItem(BaseModel):
 class OrderDetailResponse(BaseModel):
     id: str
     order_number: str
-    inquiry_id: Optional[str] = None
+    inquiry_id: str | None = None
     customer_name: str
     customer_email: str
-    organization: Optional[str] = None
+    organization: str | None = None
     country: str
     status: str
-    assigned_admin_id: Optional[str] = None
-    assigned_admin_name: Optional[str] = None
-    total_estimated_amount: Optional[str] = None
-    delivery_terms: Optional[str] = None
-    internal_notes: Optional[str] = None
+    assigned_admin_id: str | None = None
+    assigned_admin_name: str | None = None
+    total_estimated_amount: str | None = None
+    delivery_terms: str | None = None
+    internal_notes: str | None = None
     created_at: datetime
     updated_at: datetime
-    items: List[OrderItemSchema] = []
-    status_history: List[OrderStatusHistorySchema] = []
+    items: list[OrderItemSchema] = []
+    status_history: list[OrderStatusHistorySchema] = []
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class PaginatedOrdersResponse(BaseModel):
-    items: List[OrderListItem]
+    items: list[OrderListItem]
     total: int
     page: int
     limit: int
@@ -108,7 +115,7 @@ class PaginatedOrdersResponse(BaseModel):
 
 class OrderStatusUpdateRequest(BaseModel):
     status: str
-    reason: Optional[str] = Field(None, max_length=500)
+    reason: str | None = Field(None, max_length=500)
 
 
 class OrderAssignRequest(BaseModel):
@@ -120,19 +127,19 @@ class CreateOrderItemRequest(BaseModel):
     product_name: str
     sku: str
     quantity: int = Field(..., ge=1)
-    target_pack_size: Optional[str] = None
+    target_pack_size: str | None = None
 
 
 class CreateOrderRequest(BaseModel):
     customer_name: str = Field(..., min_length=2, max_length=255)
     customer_email: str = Field(..., min_length=5, max_length=255)
-    organization: Optional[str] = None
+    organization: str | None = None
     country: str = Field(..., min_length=2, max_length=100)
-    inquiry_id: Optional[str] = None
-    delivery_terms: Optional[str] = None
-    internal_notes: Optional[str] = None
-    total_estimated_amount: Optional[str] = None
-    items: List[CreateOrderItemRequest] = Field(..., min_length=1)
+    inquiry_id: str | None = None
+    delivery_terms: str | None = None
+    internal_notes: str | None = None
+    total_estimated_amount: str | None = None
+    items: list[CreateOrderItemRequest] = Field(..., min_length=1)
 
 
 
@@ -142,9 +149,9 @@ class CreateOrderRequest(BaseModel):
 async def list_orders(
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(10, ge=1, le=100, description="Items per page"),
-    search: Optional[str] = Query(None, description="Search by order number, customer name, email or organization"),
-    status_filter: Optional[str] = Query(None, alias="status", description="Filter by order lifecycle status"),
-    assigned_admin_id: Optional[str] = Query(None, description="Filter by assigned administrator ID"),
+    search: str | None = Query(None, description="Search by order number, customer name, email or organization"),
+    status_filter: str | None = Query(None, alias="status", description="Filter by order lifecycle status"),
+    assigned_admin_id: str | None = Query(None, description="Filter by assigned administrator ID"),
     current_user: User = Depends(require_permission("orders.read")),
     db: AsyncSession = Depends(get_db),
 ):
@@ -271,11 +278,11 @@ async def update_order_status(
     if not order:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
 
-    prev_status = order.status
+    prev_status = str(order.status)
     if prev_status == payload.status:
-        return await get_order_details(order_id=order.id, current_user=current_user, db=db)
+        return await get_order_details(order_id=str(order.id), current_user=current_user, db=db)
 
-    allowed_next = ORDER_STATE_TRANSITIONS.get(prev_status, [])
+    allowed_next: list[str] = ORDER_STATE_TRANSITIONS.get(prev_status, [])
     if payload.status not in allowed_next:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

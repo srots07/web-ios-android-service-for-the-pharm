@@ -1,15 +1,15 @@
-from typing import Optional, List
-import uuid
 import re
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel, Field, ConfigDict
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_, delete
+import uuid
 from datetime import datetime
 
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.dependencies.auth import require_permission
+from app.database.models import AuditEvent, ProductDocument, ProductItem, User, utc_now
 from app.database.session import get_db
-from app.database.models import ProductItem, ProductDocument, User, AuditEvent, utc_now
-from app.core.dependencies.auth import require_admin_user, require_permission
 
 router = APIRouter(tags=["Products"])
 
@@ -22,7 +22,7 @@ class ProductDocumentSchema(BaseModel):
     title: str
     document_type: str
     file_path: str
-    file_size: Optional[int] = None
+    file_size: int | None = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -32,7 +32,7 @@ class ProductDocumentCreate(BaseModel):
     title: str = Field(..., min_length=2, max_length=255)
     document_type: str = Field(..., min_length=2, max_length=100)
     file_path: str = Field(..., min_length=2, max_length=255)
-    file_size: Optional[int] = None
+    file_size: int | None = None
 
 
 class ProductItemSchema(BaseModel):
@@ -40,26 +40,26 @@ class ProductItemSchema(BaseModel):
     name: str
     category: str
     sku: str
-    product_code: Optional[str] = None
-    dosage_form: Optional[str] = None
-    strength: Optional[str] = None
-    composition: Optional[str] = None
+    product_code: str | None = None
+    dosage_form: str | None = None
+    strength: str | None = None
+    composition: str | None = None
     pack_size: str
-    description: Optional[str] = ""
-    storage_conditions: Optional[str] = None
-    shelf_life: Optional[str] = None
-    image_url: Optional[str] = None
+    description: str | None = ""
+    storage_conditions: str | None = None
+    shelf_life: str | None = None
+    image_url: str | None = None
     status: str
     is_published: bool
     created_at: datetime
     updated_at: datetime
-    documents: List[ProductDocumentSchema] = []
+    documents: list[ProductDocumentSchema] = []
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class PaginatedProductsResponse(BaseModel):
-    items: List[ProductItemSchema]
+    items: list[ProductItemSchema]
     total: int
     page: int
     limit: int
@@ -70,40 +70,40 @@ class CreateProductRequest(BaseModel):
     name: str = Field(..., min_length=2, max_length=255)
     category: str = Field(..., min_length=2, max_length=100)
     sku: str = Field(..., min_length=2, max_length=50)
-    product_code: Optional[str] = Field(None, max_length=50)
-    dosage_form: Optional[str] = Field(None, max_length=100)
-    strength: Optional[str] = Field(None, max_length=100)
-    composition: Optional[str] = None
+    product_code: str | None = Field(None, max_length=50)
+    dosage_form: str | None = Field(None, max_length=100)
+    strength: str | None = Field(None, max_length=100)
+    composition: str | None = None
     pack_size: str = Field(..., min_length=2, max_length=100)
-    description: Optional[str] = ""
-    storage_conditions: Optional[str] = Field(None, max_length=255)
-    shelf_life: Optional[str] = Field(None, max_length=100)
-    image_url: Optional[str] = Field(None, max_length=255)
-    status: Optional[str] = Field("Published", pattern="^(Draft|Published|Archived)$")
+    description: str | None = ""
+    storage_conditions: str | None = Field(None, max_length=255)
+    shelf_life: str | None = Field(None, max_length=100)
+    image_url: str | None = Field(None, max_length=255)
+    status: str | None = Field("Published", pattern="^(Draft|Published|Archived)$")
 
 
 class UpdateProductRequest(BaseModel):
-    name: Optional[str] = Field(None, min_length=2, max_length=255)
-    category: Optional[str] = Field(None, min_length=2, max_length=100)
-    sku: Optional[str] = Field(None, min_length=2, max_length=50)
-    product_code: Optional[str] = Field(None, max_length=50)
-    dosage_form: Optional[str] = Field(None, max_length=100)
-    strength: Optional[str] = Field(None, max_length=100)
-    composition: Optional[str] = None
-    pack_size: Optional[str] = Field(None, min_length=2, max_length=100)
-    description: Optional[str] = None
-    storage_conditions: Optional[str] = Field(None, max_length=255)
-    shelf_life: Optional[str] = Field(None, max_length=100)
-    image_url: Optional[str] = Field(None, max_length=255)
-    status: Optional[str] = Field(None, pattern="^(Draft|Published|Archived)$")
+    name: str | None = Field(None, min_length=2, max_length=255)
+    category: str | None = Field(None, min_length=2, max_length=100)
+    sku: str | None = Field(None, min_length=2, max_length=50)
+    product_code: str | None = Field(None, max_length=50)
+    dosage_form: str | None = Field(None, max_length=100)
+    strength: str | None = Field(None, max_length=100)
+    composition: str | None = None
+    pack_size: str | None = Field(None, min_length=2, max_length=100)
+    description: str | None = None
+    storage_conditions: str | None = Field(None, max_length=255)
+    shelf_life: str | None = Field(None, max_length=100)
+    image_url: str | None = Field(None, max_length=255)
+    status: str | None = Field(None, pattern="^(Draft|Published|Archived)$")
 
 
 # --- Public Catalogue Endpoints ---
 
-@router.get("/products", response_model=List[ProductItemSchema])
+@router.get("/products", response_model=list[ProductItemSchema])
 async def list_public_products(
-    category: Optional[str] = Query(None, description="Filter by pharmaceutical category"),
-    search: Optional[str] = Query(None, description="Search by product name, active ingredient or SKU"),
+    category: str | None = Query(None, description="Filter by pharmaceutical category"),
+    search: str | None = Query(None, description="Search by product name, active ingredient or SKU"),
     db: AsyncSession = Depends(get_db),
 ):
     """Public catalogue endpoint returning all verified active pharmaceutical formulations."""
@@ -141,9 +141,9 @@ async def list_public_products(
 async def list_admin_products(
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(10, ge=1, le=100, description="Items per page"),
-    search: Optional[str] = Query(None, description="Search by name, SKU, or active ingredients"),
-    category: Optional[str] = Query(None, description="Filter by category"),
-    status_filter: Optional[str] = Query(None, alias="status", description="Filter by status (Draft/Published/Archived)"),
+    search: str | None = Query(None, description="Search by name, SKU, or active ingredients"),
+    category: str | None = Query(None, description="Filter by category"),
+    status_filter: str | None = Query(None, alias="status", description="Filter by status (Draft/Published/Archived)"),
     current_user: User = Depends(require_permission("products.read")),
     db: AsyncSession = Depends(get_db),
 ):

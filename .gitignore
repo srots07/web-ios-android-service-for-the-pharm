@@ -60,6 +60,8 @@ yarn-debug.log*
 pnpm-debug.log*
 coverage/
 .nyc_output/
+*.tsbuildinfo
+apps/api/storage/uploads/
 
 # OS specific
 .DS_Store

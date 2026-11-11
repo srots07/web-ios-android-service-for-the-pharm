@@ -1,13 +1,13 @@
-from typing import Dict, Any, List, Optional
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field, ConfigDict
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.dependencies.auth import require_permission
+from app.database.models import AuditEvent, PlatformSetting, User, utc_now
 from app.database.session import get_db
-from app.database.models import PlatformSetting, User, AuditEvent, utc_now
-from app.core.dependencies.auth import require_admin_user, require_permission
 
 router = APIRouter(prefix="/admin/settings", tags=["Admin Settings"])
 
@@ -15,21 +15,21 @@ router = APIRouter(prefix="/admin/settings", tags=["Admin Settings"])
 class SettingItem(BaseModel):
     key: str
     value: str
-    description: Optional[str] = None
+    description: str | None = None
     category: str
     updated_at: datetime
-    updated_by_user_id: Optional[str] = None
+    updated_by_user_id: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class SettingsResponse(BaseModel):
-    settings: Dict[str, str]
-    items: List[SettingItem]
+    settings: dict[str, str]
+    items: list[SettingItem]
 
 
 class UpdateSettingsRequest(BaseModel):
-    settings: Dict[str, str] = Field(..., description="Key-value mapping of platform configuration settings.")
+    settings: dict[str, str] = Field(..., description="Key-value mapping of platform configuration settings.")
 
 
 PERMITTED_SETTING_KEYS = {

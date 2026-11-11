@@ -1,10 +1,12 @@
+import uuid
+
 import pytest
 import pytest_asyncio
-import uuid
-from httpx import AsyncClient, ASGITransport
-from app.main import app
-from app.database.session import init_db
+from httpx import ASGITransport, AsyncClient
+
 from app.config.settings import settings
+from app.database.session import init_db
+from app.main import app
 
 
 @pytest_asyncio.fixture(autouse=True)

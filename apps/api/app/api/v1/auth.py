@@ -1,27 +1,36 @@
-from datetime import datetime, timedelta, timezone
-from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
-from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import timedelta
+
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import select, update
-from app.database.session import get_db
-from app.database.models import User, UserSession, AuditEvent, Inquiry, Order, Quotation, utc_now
-from app.schemas.auth import (
-    UserRegisterRequest,
-    UserLoginRequest,
-    UserProfileUpdateRequest,
-    PasswordChangeRequest,
-    TokenResponse,
-    UserResponse,
-    MessageResponse,
-)
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.config.settings import settings
+from app.core.dependencies.auth import get_current_user
 from app.core.security.passwords import hash_password, verify_password
 from app.core.security.tokens import (
     create_access_token,
     generate_secure_token,
     hash_token,
 )
-from app.core.dependencies.auth import get_current_user
-from app.config.settings import settings
+from app.database.models import (
+    AuditEvent,
+    Inquiry,
+    Order,
+    Quotation,
+    User,
+    UserSession,
+    utc_now,
+)
+from app.database.session import get_db
+from app.schemas.auth import (
+    MessageResponse,
+    PasswordChangeRequest,
+    TokenResponse,
+    UserLoginRequest,
+    UserProfileUpdateRequest,
+    UserRegisterRequest,
+    UserResponse,
+)
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 

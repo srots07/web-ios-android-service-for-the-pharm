@@ -3,9 +3,33 @@ import http from 'http';
 import fs from 'fs';
 import path from 'path';
 
-const CHROME_PATH = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
 const PORT = 9222;
-const BASE_URL = "http://localhost:3000";
+const BASE_URL = process.env.BASE_URL || "http://localhost:3000";
+const API_URL = process.env.API_URL || "http://127.0.0.1:8000";
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@primebyactivist.com";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "PrimeAdmin@2026!";
+
+function getBrowserExecutablePath() {
+  if (process.env.CHROME_PATH && fs.existsSync(process.env.CHROME_PATH)) {
+    return process.env.CHROME_PATH;
+  }
+  const candidatePaths = [
+    "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+    path.join(process.env.LOCALAPPDATA || '', 'Google\\Chrome\\Application\\chrome.exe'),
+    "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+    "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+    "/usr/bin/google-chrome",
+    "/usr/bin/chromium-browser",
+    "/usr/bin/chromium",
+  ];
+  for (const p of candidatePaths) {
+    if (p && fs.existsSync(p)) return p;
+  }
+  return "chrome";
+}
 
 const VIEWPORTS = [
   { name: "Small mobile (320x568)", width: 320, height: 568, isMobile: true },
@@ -111,10 +135,10 @@ async function runVerification() {
   console.log("Fetching live JWT token from FastAPI backend...");
   let adminToken = "";
   try {
-    const authRes = await fetch("http://127.0.0.1:8000/api/v1/auth/login", {
+    const authRes = await fetch(`${API_URL}/api/v1/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: "admin@primebyactivist.com", password: "PrimeAdmin@2026!" })
+      body: JSON.stringify({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD })
     }).then(r => r.json());
     adminToken = authRes.access_token;
     console.log("Successfully retrieved administrator token:", adminToken.substring(0, 25) + "...");
@@ -122,7 +146,8 @@ async function runVerification() {
     console.error("Failed to fetch token from backend:", err.message);
   }
 
-  const chromeProc = spawn(CHROME_PATH, [
+  const browserPath = getBrowserExecutablePath();
+  const chromeProc = spawn(browserPath, [
     `--remote-debugging-port=${PORT}`,
     '--headless=new',
     '--disable-gpu',

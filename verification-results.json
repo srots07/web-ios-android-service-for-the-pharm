@@ -5,8 +5,8 @@
       "viewport": "Small mobile (320x568)",
       "route": "/",
       "status": "PASS",
-      "scrollWidth": 320,
-      "winWidth": 320
+      "scrollWidth": 386,
+      "winWidth": 386
     },
     {
       "viewport": "Small mobile (320x568)",
@@ -68,8 +68,8 @@
       "viewport": "Mobile (360x800)",
       "route": "/",
       "status": "PASS",
-      "scrollWidth": 360,
-      "winWidth": 360
+      "scrollWidth": 386,
+      "winWidth": 386
     },
     {
       "viewport": "Mobile (360x800)",
@@ -661,7 +661,7 @@
         "containerOverflowX": "auto",
         "tableMinWidth": "700px",
         "containerWidth": 364,
-        "tableScrollWidth": 825
+        "tableScrollWidth": 826
       }
     }
   ],
