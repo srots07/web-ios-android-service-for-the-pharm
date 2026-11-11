@@ -39,21 +39,31 @@ ALLOWED_MIME_TYPES = {
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB limit
 
 
-def validate_magic_bytes(content: bytes, content_type: str) -> bool:
-    """Validate binary file header signatures to prevent MIME spoofing."""
+def detect_magic_type(content: bytes) -> str | None:
+    """Detect binary signature (magic bytes) to strictly identify MIME type."""
     if not content or len(content) < 4:
+        return None
+    if content.startswith(b"%PDF-"):
+        return "application/pdf"
+    if content.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if content.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if content.startswith(b"RIFF") and len(content) >= 16 and b"WEBP" in content[8:16]:
+        return "image/webp"
+    if content.startswith(b"PK\x03\x04"):
+        return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    return None
+
+
+def validate_magic_bytes(content: bytes, content_type: str) -> bool:
+    """Validate binary file header signatures against claimed MIME type."""
+    detected = detect_magic_type(content)
+    if not detected:
         return False
-    if content_type == "application/pdf":
-        return content.startswith(b"%PDF-")
-    if content_type in ("image/jpeg", "image/jpg"):
-        return content.startswith(b"\xff\xd8\xff")
-    if content_type == "image/png":
-        return content.startswith(b"\x89PNG\r\n\x1a\n")
-    if content_type == "image/webp":
-        return content.startswith(b"RIFF") and b"WEBP" in content[8:16]
-    if content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-        return content.startswith(b"PK\x03\x04")
-    return False
+    if content_type in ("image/jpeg", "image/jpg") and detected == "image/jpeg":
+        return True
+    return detected == content_type
 
 
 class UploadedFileResponse(BaseModel):
@@ -88,7 +98,10 @@ async def upload_document(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="File name must not be empty.")
 
     # 1. Clean original filename & extension
-    original_name = os.path.basename(file.filename)
+    raw_name = os.path.basename(file.filename)
+    original_name = re.sub(r'[^\w.\- ]', '_', raw_name).strip()[:128]
+    if not original_name:
+        original_name = "upload"
     extension = os.path.splitext(original_name)[1].lower()
 
     # 2. Validate MIME type & extension
@@ -100,24 +113,40 @@ async def upload_document(
             detail=f"Unsupported file type '{content_type}'. Permitted extensions: {', '.join(valid_exts)}",
         )
 
-    # 3. Read content and enforce size limits
-    content = await file.read()
-    file_size = len(content)
+    # 3. Read content in bounded chunks and enforce size limits (prevents memory DoS)
+    chunks: list[bytes] = []
+    file_size = 0
+    chunk_size = 64 * 1024  # 64 KB
+    while chunk := await file.read(chunk_size):
+        file_size += len(chunk)
+        if file_size > MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=status.HTTP_413_CONTENT_TOO_LARGE if hasattr(status, "HTTP_413_CONTENT_TOO_LARGE") else 413,
+                detail=f"File exceeds maximum allowed size of {MAX_FILE_SIZE // (1024 * 1024)} MB.",
+            )
+        chunks.append(chunk)
 
     if file_size == 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded file cannot be 0 bytes.")
 
-    if file_size > MAX_FILE_SIZE:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"File exceeds maximum allowed size of {MAX_FILE_SIZE // (1024 * 1024)} MB.",
-        )
+    content = b"".join(chunks)
 
-    # 4. Strict binary magic signature validation
+    # 4. Strict binary magic signature validation & extension verification
+    detected_type = detect_magic_type(content)
+    if not detected_type:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File content does not match any recognized permitted file signature.",
+        )
     if not validate_magic_bytes(content, content_type):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Binary content does not match signature for claimed MIME type '{content_type}'.",
+        )
+    if extension not in ALLOWED_MIME_TYPES.get(detected_type, []):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"File extension '{extension}' does not match detected binary type '{detected_type}'.",
         )
 
     # 5. Generate unique, safe storage filename preventing path traversal
@@ -195,12 +224,13 @@ async def download_document(
     db.add(audit_entry)
     await db.commit()
 
+    safe_filename = re.sub(r'[\r\n",;/\\]', '_', record.filename)
     return FileResponse(
         path=str(file_path),
         filename=record.filename,
         media_type=record.content_type,
         headers={
-            "Content-Disposition": f'attachment; filename="{record.filename}"',
+            "Content-Disposition": f'attachment; filename="{safe_filename}"',
             "X-Content-Type-Options": "nosniff",
         },
     )

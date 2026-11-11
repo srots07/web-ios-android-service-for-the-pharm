@@ -279,7 +279,23 @@ async def test_document_upload_magic_bytes_spoofing_rejected():
             headers=headers,
         )
         assert res.status_code == 400
-        assert "Binary content does not match signature" in res.json()["detail"]
+        detail = res.json()["detail"]
+        assert "Binary content does not match signature" in detail or "does not match any recognized" in detail
+
+    # Also test valid binary signature whose type mismatches the declared extension
+    png_content = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01"
+    files_mismatch = {
+        "file": ("fake_doc.pdf", io.BytesIO(png_content), "application/pdf")
+    }
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        res = await ac.post(
+            "/api/v1/admin/documents/upload",
+            files=files_mismatch,
+            data={"category": "Dossiers"},
+            headers=headers,
+        )
+        assert res.status_code == 400
+        assert "Binary content does not match signature" in res.json()["detail"] or "does not match detected" in res.json()["detail"]
 
 
 @pytest.mark.asyncio
