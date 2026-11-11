@@ -3,7 +3,8 @@ import secrets
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from jose import JWTError, jwt
+import jwt
+from jwt.exceptions import PyJWTError
 
 from app.config.settings import settings
 
@@ -46,7 +47,7 @@ def create_access_token(
 
 
 def decode_access_token(token: str) -> dict[str, Any] | None:
-    """Decode and validate JWT access token."""
+    """Decode and validate JWT access token using PyJWT."""
     try:
         payload = jwt.decode(
             token,
@@ -55,6 +56,6 @@ def decode_access_token(token: str) -> dict[str, Any] | None:
             issuer="prime-by-activist-auth",
         )
         return payload
-    except JWTError:
+    except PyJWTError:
         return None
 
