@@ -227,15 +227,15 @@ svg {
 .brand {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 18px;
   flex-shrink: 0;
   text-decoration: none;
   background: #ffffff;
-  padding: 6px 26px 8px 24px;
-  border-bottom-right-radius: 28px;
-  box-shadow: 0 4px 16px rgba(16, 61, 48, 0.06);
-  border-right: 1px solid rgba(220, 230, 224, 0.7);
-  border-bottom: 1px solid rgba(220, 230, 224, 0.7);
+  padding: 8px 32px 10px 26px;
+  border-bottom-right-radius: 36px;
+  box-shadow: 0 4px 20px rgba(16, 61, 48, 0.08);
+  border-right: 1px solid rgba(220, 230, 224, 0.75);
+  border-bottom: 1px solid rgba(220, 230, 224, 0.75);
   transition: opacity var(--transition-fast);
 }
 
@@ -271,13 +271,13 @@ svg {
 .prime-header-cluster {
   display: flex;
   align-items: center;
-  gap: clamp(10px, 1.3vw, 22px);
+  gap: clamp(10px, 1.3vw, 20px);
   background: #ffffff;
-  padding: 6px 20px 8px 24px;
-  border-bottom-left-radius: 28px;
-  box-shadow: 0 4px 16px rgba(16, 61, 48, 0.06);
-  border-left: 1px solid rgba(220, 230, 224, 0.7);
-  border-bottom: 1px solid rgba(220, 230, 224, 0.7);
+  padding: 7px 24px 9px 28px;
+  border-bottom-left-radius: 36px;
+  box-shadow: 0 4px 20px rgba(16, 61, 48, 0.08);
+  border-left: 1px solid rgba(220, 230, 224, 0.75);
+  border-bottom: 1px solid rgba(220, 230, 224, 0.75);
   margin-left: auto;
 }
 
@@ -1230,7 +1230,7 @@ button:disabled,
    RESPONSIVE MEDIA QUERIES (360px - 1440px)
    ============================================================================== */
 
-@media (max-width: 1440px) {
+@media (max-width: 1140px) {
   .admin-info.admin-label {
     display: none;
   }
@@ -5233,18 +5233,17 @@ button:disabled,
   transition: outline-offset var(--transition-fast);
 }
 
-/* 2. Glassmorphism & Header Elevation */
+/* 2. Header Island Tabs & Layout Structure */
 .prime-header {
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 1px 3px rgba(16, 61, 48, 0.04), 0 1px 2px rgba(16, 61, 48, 0.02);
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
 }
 
 [data-theme="dark"] .prime-header,
 .dark .prime-header {
-  background: rgba(20, 34, 28, 0.94);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 /* 3. Button Micro-interactions & Tactile Feedback */

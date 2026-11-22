@@ -60,3 +60,4 @@ def downgrade() -> None:
         if "customer_id" in cols:
             op.drop_index(op.f(f"ix_{table}_customer_id"), table_name=table)
             op.drop_column(table, "customer_id")
+

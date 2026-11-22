@@ -197,6 +197,10 @@ async def update_user(
             detail="Modifications to Super Administrator accounts require Super Administrator authorization.",
         )
 
+    # Compute caller privilege hierarchy level to prevent privilege escalation
+    role_levels = {"customer": 1, "staff": 2, "admin": 3, "super_admin": 4}
+    caller_level = 4 if "super_admin" in requester_role_slugs else (3 if current_user.role == "admin" else 2)
+
     if payload.full_name is not None:
         user.full_name = payload.full_name.strip()
     if payload.phone is not None:
@@ -210,6 +214,12 @@ async def update_user(
     if payload.account_type is not None:
         user.account_type = payload.account_type.strip()
     if payload.role is not None and payload.role != user.role:
+        target_role_level = role_levels.get(payload.role.lower(), 1)
+        if target_role_level > caller_level:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Privilege escalation forbidden: cannot assign role '{payload.role}' exceeding your own privilege level.",
+            )
         if "super_admin" in user_role_slugs or user.role == "admin":
             active_super_admins = await db.scalar(
                 select(func.count(User.id))
@@ -228,12 +238,14 @@ async def update_user(
         roles_res = await db.execute(roles_stmt)
         matched_roles = roles_res.scalars().all()
 
-        # Prevent privilege escalation: only super_admin can assign super_admin
-        if any(r.slug == "super_admin" for r in matched_roles) and "super_admin" not in requester_role_slugs:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Assigning Super Administrator role requires Super Administrator privilege.",
-            )
+        # Prevent privilege escalation: caller cannot assign roles exceeding their privilege level
+        for r in matched_roles:
+            target_role_level = 4 if r.slug == "super_admin" else (3 if r.slug == "admin" else 2)
+            if target_role_level > caller_level:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Privilege escalation forbidden: cannot assign role '{r.name}' exceeding your own privilege level.",
+                )
 
         # Protect last active super_admin from losing role
         if "super_admin" in user_role_slugs and not any(r.slug == "super_admin" for r in matched_roles):

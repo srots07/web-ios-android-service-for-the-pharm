@@ -670,6 +670,90 @@ async def test_upload_filename_traversal_rejected_and_stored_as_uuid():
         assert len(uuid_part) == 32
 
 
+@pytest.mark.asyncio
+async def test_privilege_escalation_prevention_on_users_and_roles():
+    """Callers cannot assign roles higher than their own or grant permissions they lack."""
+    from sqlalchemy import select
+    from app.core.security.tokens import create_access_token
+    from app.database.models import Permission, Role, User
+    from app.database.session import async_session_maker
+
+    # Create a staff user with users.update and roles.manage permissions
+    async with async_session_maker() as session:
+        # Get or create custom staff role
+        role_stmt = select(Role).where(Role.slug == "test_staff_manager")
+        res_r = await session.execute(role_stmt)
+        staff_role = res_r.scalar_one_or_none()
+        if not staff_role:
+            perms_res = await session.execute(
+                select(Permission).where(Permission.slug.in_(["users.update", "users.read", "roles.manage", "roles.read"]))
+            )
+            staff_role = Role(
+                name="Test Staff Manager",
+                slug="test_staff_manager",
+                description="Staff manager for test",
+                permissions=list(perms_res.scalars().all()),
+            )
+            session.add(staff_role)
+            await session.commit()
+            await session.refresh(staff_role)
+
+        # Create staff user
+        staff_user = User(
+            email=f"staff-mgr-{uuid.uuid4().hex[:6]}@example.com",
+            full_name="Staff Manager",
+            password_hash="test",
+            role="staff",
+            roles=[staff_role],
+        )
+        session.add(staff_user)
+        # Create target user
+        target_user = User(
+            email=f"target-user-{uuid.uuid4().hex[:6]}@example.com",
+            full_name="Target User",
+            password_hash="test",
+            role="customer",
+        )
+        session.add(target_user)
+        await session.commit()
+        await session.refresh(staff_user)
+        await session.refresh(target_user)
+
+        staff_token = create_access_token({
+            "sub": staff_user.id,
+            "email": staff_user.email,
+            "role": "staff",
+            "name": staff_user.full_name,
+        })
+        target_id = target_user.id
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        staff_headers = {"Authorization": f"Bearer {staff_token}"}
+
+        # 1. Staff attempts to promote target user to admin -> rejected with 403
+        res_escalate_role = await ac.patch(
+            f"/api/v1/admin/users/{target_id}",
+            json={"role": "admin"},
+            headers=staff_headers,
+        )
+        assert res_escalate_role.status_code == 403
+        assert "Privilege escalation forbidden" in res_escalate_role.json()["detail"]
+
+        # 2. Staff attempts to create a custom role granting settings.update (a permission staff lacks) -> rejected with 403
+        res_escalate_perm = await ac.post(
+            "/api/v1/admin/roles",
+            json={
+                "name": f"Unauthorized Role {uuid.uuid4().hex[:6]}",
+                "description": "Attempting to grant settings permission",
+                "permission_ids": ["perm-settings-update"],
+            },
+            headers=staff_headers,
+        )
+        assert res_escalate_perm.status_code == 403
+        assert "Privilege escalation forbidden" in res_escalate_perm.json()["detail"]
+
+
+
 
 
 

@@ -158,6 +158,16 @@ async def create_role(
     )
 
     if payload.permission_ids:
+        # Prevent privilege escalation: caller cannot grant permissions they do not possess
+        caller_perm_ids = {p.id for r in current_user.roles for p in (r.permissions or [])}
+        is_super = any(r.slug == "super_admin" for r in current_user.roles) or current_user.role == "admin"
+        if not is_super:
+            unauthorized = set(payload.permission_ids) - caller_perm_ids
+            if unauthorized:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Privilege escalation forbidden: cannot grant permissions you do not possess.",
+                )
         p_stmt = select(Permission).where(Permission.id.in_(payload.permission_ids))
         p_res = await db.execute(p_stmt)
         role.permissions = list(p_res.scalars().all())
@@ -216,6 +226,16 @@ async def update_role(
         role.description = payload.description.strip()
 
     if payload.permission_ids is not None:
+        # Prevent privilege escalation: caller cannot grant permissions they do not possess
+        caller_perm_ids = {p.id for r in current_user.roles for p in (r.permissions or [])}
+        is_super = any(r.slug == "super_admin" for r in current_user.roles) or current_user.role == "admin"
+        if not is_super:
+            unauthorized = set(payload.permission_ids) - caller_perm_ids
+            if unauthorized:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Privilege escalation forbidden: cannot grant permissions you do not possess.",
+                )
         p_stmt = select(Permission).where(Permission.id.in_(payload.permission_ids))
         p_res = await db.execute(p_stmt)
         role.permissions = list(p_res.scalars().all())
